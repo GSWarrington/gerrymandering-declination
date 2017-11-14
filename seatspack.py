@@ -60,7 +60,7 @@ def distribute_votes(arr,votes,stidx,enidx,maxval,verbose=False):
     return allfit,notfit,sorted(narr)
 
 ###############################################################################
-def seats_pack_or_crack(arr,crack=True,verbose=False):
+def even_seats_pack_or_crack(arr,crack=True,verbose=False):
     """ crack or pack if possible
     """
     N = len(arr)
@@ -142,6 +142,83 @@ def seats_pack_or_crack(arr,crack=True,verbose=False):
             while narr[enidx-1] == maxval:
                 enidx -= 1
         # print "blah: ",narr
+    return True,narr
+
+###############################################################################
+def seats_pack_or_crack(arr,crack=True,verbose=False):
+    """ crack or pack if possible. shove as far away from middle as possible.
+    """
+    N = len(arr)
+    delx = 1.0/(2*N)
+    xvals = np.linspace(delx,1-delx,N)
+
+    # figure out which district is being modified
+    narr = sorted([x for x in arr])
+    idx = 0
+    while idx < N and narr[idx] <= 0.5:
+        idx += 1
+    if idx == 0 or idx == N:
+        if verbose:
+            print "One side one everything. Failing"
+        return False,narr
+    
+    # don't allow ones that are too lopsided
+    # if ((N-idx)*1.0/N < 0.45 or (N-idx)*1.0/N > 0.55):
+    #     return False,narr
+    if (crack and (idx < 3 or N-idx-1 < 1)) or ((not crack) and (N-idx-1 < 3 or idx < 1)):
+        return False,narr
+
+    # set up parameters for filling things in
+    if crack:
+        maxval = maxpct
+        stidx = 0
+        enidx = idx
+    else: # pack
+        maxval = 1.0
+        stidx = idx+1
+        enidx = N
+
+    if stidx == enidx:
+        if verbose:
+            print narr,crack,stidx
+        return False,narr
+
+    lr = stats.linregress(xvals[stidx:enidx],narr[stidx:enidx])
+    # how much room we have for the votes we're trying to crack
+    if crack:
+        # room = idx*maxval - sum(narr[stidx:enidx])
+        room = idx*maxval - sum([min(maxpct,narr[i]) for i in range(stidx,enidx)])
+    else:
+        room = (N-idx-1)*maxval - sum(narr[stidx:enidx])
+    # new value for district we're cracking
+    nval = min(maxpct,lr[1] + lr[0]*delx*(2*idx + 1))
+    # amount we're changing that one district
+    diff = narr[idx]-nval
+    # see if we have enough room to crack the votes
+    # could try to not reduce quite as much (ignore linear regression)
+    if room < diff:
+        nval = maxpct
+        diff = narr[idx]-nval
+        if room < diff:
+            if verbose:
+                print "Not enough room to crack votes; returning original"
+            return False,arr
+
+    narr[idx] = nval
+    # if idx == N-1 and pack:
+    #     return False,narr
+    # if idx == 0 and crack:
+    #     return False,narr
+    while diff > 0.001:
+        if crack:
+            val, nidx = min((val, nidx) for (nidx, val) in enumerate(narr[:idx]))
+        else:
+            val, nidx = max((val, nidx) for (nidx, val) in enumerate(narr[idx+1:]))
+            nidx += (idx+1)
+        # print diff,val,nidx,narr
+        amt = min(0.01,diff)
+        narr[nidx] += amt
+        diff -= amt
     return True,narr
 
 ###############################################################################
@@ -483,7 +560,7 @@ def eg_create_mpandc_pic(fn,betac,betav,verbose = False):
             vote = d[yr][st]
             # convert to presidential vote
             origl = sorted([x[0] for x in vote])
-            origp = map(lambda i: (gamma0[yr] + gamma1[yr]*origl[i]), range(len(vote)))
+            origp = map(lambda i: (gamma0 + gamma1*origl[i]), range(len(vote)))
             if int(yr) >= 1972 and len(origl) >= 3 and \
                len(filter(lambda x: x > 0.5, origl)) > 0 and \
                len(filter(lambda x: x > 0.5, origl)) < len(vote):
@@ -569,6 +646,7 @@ def cottrell_create_mpandc_pic(fn,betac,betav,gamma0,gamma1,verbose = False):
 
     ansdem = []
     ansrep = []
+    ccc = []
     for yr in d.keys():
         for st in d[yr].keys():
             vote = d[yr][st]
@@ -588,6 +666,14 @@ def cottrell_create_mpandc_pic(fn,betac,betav,gamma0,gamma1,verbose = False):
                     ansrep.extend(arep)
                 if verbose:
                     print adem,arep
+                if yr == 2012:
+                    for x in adem:
+                        # print 'dem',st,"%.2f %.2f" % (x[0],x[1])
+                        ccc.append(abs(x[1]))
+                    for x in arep:
+                        # print 'rep',st,"%.2f %.2f" % (x[0],x[1])
+                        ccc.append(abs(x[1]))
+    print "cccccc: ",np.mean(ccc),np.median(ccc)
 
     for x in ansdem:
         if len(x) < 2:
@@ -1118,6 +1204,8 @@ def compare_dec(gammaint,gammaslo):
         curyrp = 0
         curyrl = 0
         for st in d[yr].keys():
+            # if yr not in [2000,'2000'] or st != 'FL':
+            #     continue
             vote = d[yr][st]
             if len(vote) < 2:
                 continue
@@ -1142,3 +1230,128 @@ def compare_dec(gammaint,gammaslo):
     plt.scatter(decp,decl)
     plt.savefig('/home/gswarrin/research/gerrymander/pics/declp')
     plt.close()
+
+def elec_get_ptol_regress(elecs,yrs):
+    """ so we can convert pres vote to leg vote
+    """
+    lrd = dict()
+    for yr in yrs:
+        arrl = []
+        arrp = []
+        for elec in elecs.values():
+            if elec.yr == yr and elec.chamber == '11':
+                lvote = elec.demfrac
+                pvote = elec.pvote
+                if len(lvote) < 5:
+                    continue
+                # print yr,st,vote
+                # lvote is in first index; pvote in second
+                # convert to presidential vote
+                arrl.extend(lvote)
+                arrp.extend(pvote)
+                # origl = sorted([x[0] for x in vote])
+                # origp = sorted([x[1] for x in vote])
+        lr = stats.linregress(arrp,arrl)
+        print yr,lr[1],lr[0]
+        lrd[yr] = [lr[1],lr[0]]
+    return lrd
+
+# in 2012, leg vote and leg vote regressed from pres vote yield very
+# different answers for number of seats. so if I can put in simulation
+# data instead should get something reasonable.
+def compare_dec(elecs):
+    """ so we can compare different fits
+    """
+    fig = plt.figure(figsize=(6,6)) # plt.subplots(1,2,figsize=(8,4))
+
+    yrmin = 1972
+    yrmax = 2012
+    yrs = [str(yrmin+4*j) for j in range(11)]
+
+    lrd = elec_get_ptol_regress(elecs,yrs)
+
+    decp = []
+    decl = []
+    for yr in yrs:
+        curyrp = 0
+        curyrl = 0
+        for elec in elecs.values():
+            if elec.chamber == '11' and elec.yr == yr:
+                lvote = elec.demfrac
+                pvote = elec.pvote
+                if len(lvote) < 2 or '' in pvote:
+                    continue
+                # print yr,st,vote
+                # lvote is in first index; pvote in second
+                # convert to presidential vote
+                origl = sorted(lvote)
+                origp = sorted([lrd[yr][0] + lrd[yr][1]*x for x in pvote])
+
+                # print origl,origp
+                lans = find_angle('',elec.demfrac) # origl)
+                pans = find_angle('',origp)
+                if abs(lans) < 2 and abs(lans) < 2:
+                    decl.append(lans) # *multfact*len(lvote))
+                    decp.append(pans) # *multfact*len(pvote))
+                    curyrl += round(lans*multfact*elec.Ndists)
+                    curyrp += round(pans*multfact*len(pvote))
+        print yr," ... %.2f %.2f" % (curyrl,curyrp)
+        # print yr," ... %.2f" % (curyrl)
+    # print stats.pearsonr(decp,decl)
+    # plt.scatter(decp,decl)
+    plt.savefig('/home/gswarrin/research/gerrymander/pics/declp')
+    plt.close()
+
+def cottrell_total_seats(betav,betac):
+    """ try to figure out how many total seats under simulated plans
+    """
+    act = []
+    sim = []
+    for st in statelist:
+        fn = '/home/gswarrin/research/gerrymander/data/ChenCottrell/' + st + 'simul.txt'
+        if os.path.isfile(fn):
+
+
+
+            f = open(fn,'r')
+            l = cottrell_fig2('',st,betav,betac)
+            act.append([st,l[0]])
+            sim.append([st,l[1]])
+    diff = [sim[i][1] - act[i][1] for i in range(len(act))]
+    diffr = map(lambda x: floor(x) if x > 0 else floor(x)+1, diff)
+    # simr = map(lambda x: floor(x) if x > 0 else floor(x)+1, [x[1] for x in sim])
+    # actr = map(lambda x: floor(x) if x > 0 else floor(x)+1, [x[1] for x in act])
+    print "sim expd: ",np.sum([x[1] for x in sim])
+    print "act expd: ",np.sum([x[1] for x in act])
+    # rounded version
+    print "dif expd: ",np.sum(diffr)
+
+    fn = st + 'simul.txt'
+    f = open('/home/gswarrin/research/gerrymander/data/ChenCottrell/' + fn,'r')
+    simul_votes = [[] for j in range(205)] # list of vote fractions for each of 200 simulations in the state
+    expd_seats = [[] for j in range(205)]  # corresponding expected probability of electing democrat
+    for i,line in enumerate(f):
+        l = line.rstrip().split('\t')
+        l2 = map(lambda x: float(x), l[1:]) # skip simulation number
+        tmp = 0
+        for j in range(len(l2)):
+            simul_votes[i].append(1-l2[j])
+
+        expd_seats[i] = map(lambda x: 1/(1+np.exp(-(betav*x + betac))), simul_votes[i])
+
+        vals = sorted(simul_votes[i])
+        evals = sorted(expd_seats[i])
+        xvals = np.linspace(0+1.0/(2*len(vals)),1-1.0/(2*len(vals)),len(vals))
+        xvals = map(lambda x: x + np.random.rand(1,1)[0][0]/50-0.01, xvals)
+        if makepic:
+            axes[0].scatter(xvals,vals,s=1,color='grey')
+            axes[1].scatter(xvals,evals,s=1,color='grey')
+
+    if makepic:
+        axes[0].axhline(0.5,color='black')
+        axes[1].axhline(0.5,color='black')
+
+    # get expected number of seats in the state from actual district plan
+    actual_plan = sorted(get_state_actual_probs(2012,fn[:2]))
+    actual_prob = map(lambda x: 1/(1+np.exp(-(betav*x + betac))), actual_plan)
+    

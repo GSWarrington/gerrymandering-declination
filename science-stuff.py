@@ -5,16 +5,19 @@ import subprocess
 import os  
 import matplotlib.patches as patches
 
+myr = '#ff8080'
+myb = '#8080ff'
+
 fileconv = ['fig0-dec-def','fig1-dec-ex','fig-var','fig2-heatmap-e','fig-deltae-only',\
             'scatter-wi-nommd','fig-discuss','figS1-cong2016','figS2-st2008','figS3-congline',\
             'figS4-stateline']
 
 scalef = 1
-mydpi = 300
+mydpi = 100
 
 # mpl.rcParams['figure.figsize'] = [8.0, 6.0]
-plt.rcParams['figure.dpi'] = 900
-plt.rcParams['savefig.dpi'] = 900
+plt.rcParams['figure.dpi'] = 100
+plt.rcParams['savefig.dpi'] = 100
 
 plt.rcParams['font.size'] = 12
 plt.rcParams['legend.fontsize'] = 'large'
@@ -196,8 +199,111 @@ def fig1_plot_angle(k,axes,fig,elections,seatsbool=False):
     # plt.show()
     # plt.close()   
 
+############################################################################
 # Fig 1.
-def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=True,xaxislab=True,yaxislab=True,plotfullreg=False,ylab='Dem. vote'):
+def talk_fig1_plot_angle(k,axes,fig,elections,seatsbool=False):
+    """ copied from plot_angle
+    """
+    # plt.figure(figsize=(10,5),frameon=False)
+    # axes = plt.gca()
+    # axes.set_axis_bgcolor('none')
+    # axes.set_frame_on(True)
+    # axes.set_axis_on()
+    axes.get_xaxis().set_ticks([])
+    axes.set_xlabel('District')
+
+    # plt.set_frame_on(True)
+    elec = elections[k]
+    vals = sorted(elec.demfrac)
+    N = len(vals)
+    m = len(filter(lambda x: x < 0.5, vals))
+    n = N-m
+    # ans,m1,i1,m2,i2 = find_lines(elec.state,vals)
+    ybar = np.mean(vals[:m])
+    zbar = np.mean(vals[m+1:])
+
+    # axes.patch.set_visible(True)
+    # fig.patch.set_visible(True)
+    # axes.grid(False)
+    # axes.set_facecolor('green')
+    
+    for item in ([axes.title, axes.xaxis.label, axes.yaxis.label] +\
+                 axes.get_xticklabels() + axes.get_yticklabels()):
+        item.set_fontsize(14)
+
+    # plot actual vote fractions
+    x1 = [i*1.0/N-1.0/(2*N) for i in range(1,m+1)]
+    x2 = [m*1.0/N + i*1.0/N-1.0/(2*N) for i in range(1,n+1)]
+    y1 = vals[:m]
+    y2 = vals[m:]
+    axes.scatter(x1,y1,color = myr,s=60)
+    axes.scatter(x2,y2,color = myb,s=60)
+    
+    # plot mid line
+    axes.plot([0,1], [0.5,0.5], color = 'black')
+    # plot angled lines
+    axes.plot([m*1.0/(2*N),m*1.0/N], [ybar,0.5], 'k-')
+    axes.plot([m*1.0/N,m*1.0/N+n*1.0/(2*N)], [0.5,zbar], 'k-')
+
+    # ax = gca()
+    ptF = [m*1.0/(2*N),ybar]
+    ptG = [m*1.0/N,0.5]
+    ptH = [m*1.0/N + n*1.0/(2*N),zbar]
+    ptT = [0,0.5]
+    ptU = [1,0.5]
+
+    axes.set_ylabel('Democratic vote')
+
+    # line, = axes.plot([ptT[0],ptG[0],ptF[0]], [ptT[1],ptG[1],ptF[1]], 'k-', lw=2)
+    #    line2, = axes.plot([ptU[0],ptG[0],ptH[0]], [ptU[1],ptG[1],ptH[1]], 'k-', lw=2)
+
+    # if not seatsbool:
+        # plt
+        # axes.annotate('$\\theta_P$',(0.85,0.57),fontsize=16)
+        # axes.add_patch(matplotlib.patches.Arc(ptG, .4, .4, 0, 180, 196.5, color='green',lw=3))
+        # plt
+        # axes.annotate('$\\theta_Q$',(0.52,0.46),fontsize=16)
+
+        # axes.add_patch(matplotlib.patches.Arc(ptG, .2, .2, 0, 0, 65, color='green',lw=3))
+
+        # axes.annotate('T',(0,0.45),fontsize=16)
+        # axes.annotate('U',(1,0.45),fontsize=16)
+        # axes.plot([ptT[0],ptU[0]],[ptT[1],ptU[1]],'ko',markersize=5)
+
+    # axes.text(0.01,.97,'A',fontsize=16, transform=fig.transFigure, fontweight='bold') # , va='top', ha='right')
+
+    axes.plot([ptG[0],1],[ptG[1],ptG[1]+(1-ptG[0])*(0.5-ybar)/(ptG[0]-ptF[0])],'k-.')
+    axes.add_patch(matplotlib.patches.Arc(ptG, .4, .4, 0, 16.5, 65, color='green',lw=3))
+    # plt
+    axes.annotate('$\\delta\\pi/2$',(0.94,0.63),fontsize=16)
+    # axes.annotate('F',(0.38,0.33),fontsize=16)
+    # axes.annotate('G',(0.77,0.45),fontsize=16)
+    # axes.annotate('H',(0.9,0.71),fontsize=16)
+    # axes.xlabel('District')
+    # axes.ylabel('Dem. vote')
+    axes.plot([m*1.0/(2*N),m*1.0/N+n*1.0/(2*N)],[ybar,zbar],'ko',markersize=5)
+    axes.plot([ptG[0]],[ptG[1]],'ko',markersize=5)
+    axes.axis([-0.1,1.1,0.25,0.8])
+    # axes.set_axis_bgcolor('none')    
+    # axes.grid(False)
+
+    # turns grey part on or off
+    # axes.patch.set_visible(False)
+
+    # add_corner_arc(axes, line, text='$\\theta$') # u'%d\u00b0' % 90)
+    # add_corner_arc(axes, line2, text='$\\phi$') # u'%d\u00b0' % 90)
+    # add_corner_arc(ax, line, radius=.7, color='black', text=None, text_radius=.5, text_rotatation=0, **kwargs):
+
+    # plt.set_xticks([1,N])
+    # plt.set_ylim(0,1)
+    yr,st,chm = k.split('_')
+    axes.set_title(st + ' ' + yr)
+    # plt.savefig('/home/gswarrin/research/gerrymander/pics/paper-angle-plot-' + k + '.png')
+    # plt.show()
+    # plt.close()   
+
+# Fig 1.
+def web_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=True,xaxislab=True,yaxislab=True,plotfullreg=False,ylab='Dem. vote'):
     """ Make grid of angles for paper
     """
     axe.set_axis_bgcolor('none')
@@ -219,6 +325,8 @@ def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
     # plot mid line
     axe.axhline(0.5, color = 'black', linestyle = 'dotted')
 
+    # print "title: ",title
+
     if lrg:
         lrg_sz = 60
         lrg_marksz = 5
@@ -231,11 +339,13 @@ def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
         lrg_sz = 420
         lrg_marksz = 20
         lrg_lw = 9
-        fs = 60
+        fs = 100
         for item in ([axe.title, axe.xaxis.label, axe.yaxis.label] +\
                      axe.get_xticklabels() + axe.get_yticklabels()):
             item.set_fontsize(fs)
         
+    # print "asdfasdf"
+
     axe.spines['top'].set_visible(False)
     axe.spines['right'].set_visible(False)
 
@@ -245,18 +355,34 @@ def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
     # plot values of metrics
     if plotdec:
         fa = find_angle('',vals) # *math.log(len(vals))/2
+        eg = compute_alpha_curve(vals,0)
+        tstr = "D vote = " + ("% .2f" % (np.mean(vals)))
         if abs(fa) >= 2:
-            tmpstr = '$\\delta = N/A'
+            tmpstr  = '$\\delta = N/A$'
+            tmpstr2 = 'Seats = N/A'
+            # tmpstr3 = 'EG = ' + ("% .2f" % (eg))
         else:
             if fa > 0:
-                tmpstr = '$\ \ \ \ {\\delta} = ' + ("% .2f$" % (fa))
+                tmpstr = 'Decl. = ' + ("% .2f" % (fa))
+                tmpstr2 = 'Seats = ' + ("% .1f" % (fa*5.0*len(arr)/12))
+                # tmpstr3 = 'EG = ' + ("% .2f" % (eg))
             else:
-                tmpstr = '$\\delta = ' + ("% .2f$" % (fa))                
+                tmpstr = 'Decl. = ' + ("% .2f" % (fa))                
+                tmpstr2 = 'Seats = ' + ("% .1f" % (fa*5.0*len(arr)/12))
+                # tmpstr3 = 'EG = ' + ("% .2f" % (eg))
         # axe.annotate(tmpstr, (0.02,0.84))
         if lrg:
-            axe.annotate(tmpstr, (0.65,0.05), fontsize=fs)
+            axe.annotate(tstr, (0.65,0.14), fontsize=fs)
+            axe.annotate(tmpstr, (0.65,0.10), fontsize=fs)
+            axe.annotate(tmpstr2, (0.65,0.06), fontsize=fs)
+            # axe.annotate(tmpstr3, (0.65,0.02), fontsize=fs)
         else:
-            axe.annotate(tmpstr, (0.5,0.05), fontsize=fs)
+            axe.annotate(tstr, (0.5,0.14), fontsize=fs)
+            axe.annotate(tmpstr, (0.5,0.10), fontsize=fs)
+            axe.annotate(tmpstr2, (0.5,0.06), fontsize=fs)
+            # axe.annotate(tmpstr3, (0.5,0.02), fontsize=fs)
+
+    # print "----"
 
     axe.get_xaxis().set_ticks([])
     axe.set_ylim(0,1)
@@ -266,6 +392,8 @@ def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
         axe.set_ylabel(ylab)
     if xaxislab:
         axe.set_xlabel('District')
+
+    # print "===="
 
     if m > 0 and n > 0 and plotslopes:
         # plot angled lines
@@ -279,7 +407,225 @@ def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
 
         if plotfullreg:
             l = stats.linregress(x1+x2,vals)
-            print "regress line: ",l
+            # print "regress line: ",l
+            axe.plot([0,1],[l[1],l[1]+l[0]],'k-',linewidth=1)
+
+    axe.set_axis_bgcolor('none')
+
+# Fig 1.
+def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=True,xaxislab=True,yaxislab=True,
+                              plotfullreg=False,ylab='Dem. vote'):
+    """ Make grid of angles for paper
+    """
+    axe.set_axis_bgcolor('none')
+    axe.xaxis.set_ticks_position('bottom')
+    axe.yaxis.set_ticks_position('left')
+
+    vals = sorted(arr)
+
+    N = len(vals)
+    m = len(filter(lambda x: x < 0.5, vals))
+    n = N-m
+
+    # plot actual vote fractions
+    x1 = [j*1.0/N-1.0/(2*N) for j in range(1,m+1)]
+    x2 = [m*1.0/N + j*1.0/N-1.0/(2*N) for j in range(1,n+1)]
+    y1 = vals[:m]
+    y2 = vals[m:]
+
+    # plot mid line
+    axe.axhline(0.5, color = 'black', linestyle = 'dotted')
+
+    # print "title: ",title
+
+    if lrg:
+        lrg_sz = 60
+        lrg_marksz = 5
+        lrg_lw = 3
+        fs = 14
+        for item in ([axe.title, axe.xaxis.label, axe.yaxis.label] +\
+                     axe.get_xticklabels() + axe.get_yticklabels()):
+            item.set_fontsize(fs)
+    else:
+        lrg_sz = 420
+        lrg_marksz = 20
+        lrg_lw = 9
+        fs = 100
+        for item in ([axe.title, axe.xaxis.label, axe.yaxis.label] +\
+                     axe.get_xticklabels() + axe.get_yticklabels()):
+            item.set_fontsize(fs)
+        
+    # print "asdfasdf"
+
+    axe.spines['top'].set_visible(False)
+    axe.spines['right'].set_visible(False)
+
+    # print y2
+
+    # plot values of metrics
+    if plotdec:
+        fa = find_angle('',vals) # *math.log(len(vals))/2
+        eg = compute_alpha_curve(vals,0)
+        tstr = "D vote = " + ("% .2f" % (np.mean(vals)))
+        if abs(fa) >= 2:
+            tmpstr  = '$\\delta = N/A$'
+            tmpstr2 = 'Seats = N/A'
+            tmpstr3 = 'EG = ' + ("% .2f" % (eg))
+        else:
+            if fa >= 0:
+                tmpstr = '$\ \ \ \ {\\delta} = ' + ("% .2f$" % (fa))
+                tmpstr2 = 'Seats = ' + ("% .1f" % (fa*5.0*len(arr)/12))
+                tmpstr3 = 'EG = ' + ("% .2f" % (eg))
+            else:
+                tmpstr = '$\\delta = ' + ("% .2f$" % (fa))                
+                tmpstr2 = 'Seats = ' + ("% .1f" % (fa*5.0*len(arr)/12))
+                tmpstr3 = 'EG = ' + ("% .2f" % (eg))
+        # axe.annotate(tmpstr, (0.02,0.84))
+        if lrg:
+            # axe.annotate(tstr, (0.65,0.14), fontsize=fs)
+            axe.annotate(tmpstr, (0.6,0.10), fontsize=fs)
+            # axe.annotate(tmpstr2, (0.65,0.06), fontsize=fs)
+            # axe.annotate(tmpstr3, (0.65,0.02), fontsize=fs)
+        else:
+            # axe.annotate(tstr, (0.5,0.14), fontsize=fs)
+            axe.annotate(tmpstr, (0.5,0.10), fontsize=fs)
+            # axe.annotate(tmpstr2, (0.5,0.06), fontsize=fs)
+            # axe.annotate(tmpstr3, (0.5,0.02), fontsize=fs)
+
+    # print "----"
+
+    axe.get_xaxis().set_ticks([])
+    axe.set_ylim(0,1)
+    axe.set_xlim(0,1)
+    axe.set_title(title,fontsize=fs) # elec.state + ' ' + elec.yr)
+    if yaxislab:
+        axe.set_ylabel(ylab)
+    if xaxislab:
+        axe.set_xlabel('District')
+
+    # print "===="
+
+    if m > 0 and n > 0 and plotslopes:
+        # plot angled lines
+        ybar = np.mean(vals[:m])
+        zbar = np.mean(vals[m:])
+
+        med_marksz = lrg_marksz*2.0/3
+        axe.plot([m*1.0/(2*N),m*1.0/N], [ybar,0.5], 'k-', linewidth=lrg_lw)
+        axe.plot([m*1.0/N,m*1.0/N+n*1.0/(2*N)], [0.5,zbar], 'k-', linewidth=lrg_lw)
+        axe.plot([m*1.0/(2*N),m*1.0/N,m*1.0/N+n*1.0/(2*N)],[ybar,0.5,zbar],'ko',markersize=med_marksz)
+
+        if plotfullreg:
+            l = stats.linregress(x1+x2,vals)
+            # print "regress line: ",l
+            axe.plot([0,1],[l[1],l[1]+l[0]],'k-',linewidth=1)
+
+    axe.scatter(x1,y1,color = myr,s=lrg_sz)
+    axe.scatter(x2,y2,color = myb,s=lrg_sz)
+
+    axe.set_axis_bgcolor('none')
+
+# Fig 1.
+def talk_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=True,xaxislab=True,yaxislab=True,plotfullreg=False,ylab='Dem. vote'):
+    """ Make grid of angles for paper
+    """
+    axe.set_axis_bgcolor('none')
+    axe.xaxis.set_ticks_position('bottom')
+    axe.yaxis.set_ticks_position('left')
+
+    vals = sorted(arr)
+
+    N = len(vals)
+    m = len(filter(lambda x: x < 0.5, vals))
+    n = N-m
+
+    # plot actual vote fractions
+    x1 = [j*1.0/N-1.0/(2*N) for j in range(1,m+1)]
+    x2 = [m*1.0/N + j*1.0/N-1.0/(2*N) for j in range(1,n+1)]
+    y1 = vals[:m]
+    y2 = vals[m:]
+
+    # plot mid line
+    axe.axhline(0.5, color = 'black', linestyle = 'dotted')
+
+    # print "title: ",title
+
+    if lrg:
+        lrg_sz = 60
+        lrg_marksz = 5
+        lrg_lw = 3
+        fs = 14
+        for item in ([axe.title, axe.xaxis.label, axe.yaxis.label] +\
+                     axe.get_xticklabels() + axe.get_yticklabels()):
+            item.set_fontsize(fs)
+    else:
+        lrg_sz = 420
+        lrg_marksz = 20
+        lrg_lw = 9
+        fs = 100
+        for item in ([axe.title, axe.xaxis.label, axe.yaxis.label] +\
+                     axe.get_xticklabels() + axe.get_yticklabels()):
+            item.set_fontsize(fs)
+        
+    # print "asdfasdf"
+
+    axe.spines['top'].set_visible(False)
+    axe.spines['right'].set_visible(False)
+
+    axe.scatter(x1,y1,color = myr,s=lrg_sz)
+    axe.scatter(x2,y2,color = myb,s=lrg_sz)
+
+    # plot values of metrics
+    if plotdec:
+        fa = find_angle('',vals) # *math.log(len(vals))/2
+        eg = compute_alpha_curve(vals,0)
+        # tstr = "D vote = " + ("% .2f" % (np.mean(vals)))
+        if abs(fa) >= 2:
+            tmpstr  = '$\\delta = N/A$'
+            tmpstr2 = 'Seats = N/A'
+        else:
+            if fa > 0:
+                tmpstr = '$\ \ \ \ {\\delta} = ' + ("% .2f$" % (fa))
+                tmpstr2 = 'Seats = ' + ("% .1f" % (fa*5.0*len(arr)/12))
+            else:
+                tmpstr = '$\\delta = ' + ("% .2f$" % (fa))                
+                tmpstr2 = 'Seats = ' + ("% .1f" % (fa*5.0*len(arr)/12))
+        # axe.annotate(tmpstr, (0.02,0.84))
+        if lrg:
+            # axe.annotate(tstr, (0.65,0.14), fontsize=fs)
+            axe.annotate(tmpstr, (0.65,0.14), fontsize=fs)
+            axe.annotate(tmpstr2, (0.65,0.06), fontsize=fs)
+        else:
+            # axe.annotate(tstr, (0.5,0.14), fontsize=fs)
+            axe.annotate(tmpstr, (0.5,0.14), fontsize=fs)
+            axe.annotate(tmpstr2, (0.5,0.06), fontsize=fs)
+
+    # print "----"
+
+    axe.get_xaxis().set_ticks([])
+    axe.set_ylim(0,1)
+    axe.set_xlim(0,1)
+    axe.set_title(title,fontsize=fs) # elec.state + ' ' + elec.yr)
+    if yaxislab:
+        axe.set_ylabel(ylab)
+    if xaxislab:
+        axe.set_xlabel('District')
+
+    # print "===="
+
+    if m > 0 and n > 0 and plotslopes:
+        # plot angled lines
+        ybar = np.mean(vals[:m])
+        zbar = np.mean(vals[m:])
+
+        med_marksz = lrg_marksz*2.0/3
+        axe.plot([m*1.0/(2*N),m*1.0/N], [ybar,0.5], 'k-', linewidth=lrg_lw)
+        axe.plot([m*1.0/N,m*1.0/N+n*1.0/(2*N)], [0.5,zbar], 'k-', linewidth=lrg_lw)
+        axe.plot([m*1.0/(2*N),m*1.0/N,m*1.0/N+n*1.0/(2*N)],[ybar,0.5,zbar],'ko',markersize=med_marksz)
+
+        if plotfullreg:
+            l = stats.linregress(x1+x2,vals)
+            # print "regress line: ",l
             axe.plot([0,1],[l[1],l[1]+l[0]],'k-',linewidth=1)
 
     axe.set_axis_bgcolor('none')
@@ -385,10 +731,10 @@ def fig1_txpa_heat(axes,fig,elections):
     """ Make grid of angles for paper
     """
     # Changed labels
-    axes[0].text(0.01,.94,'A',fontsize=16, transform=fig.transFigure, fontweight='bold')
-    axes[1].text(0.5,.94,'B',fontsize=16, transform=fig.transFigure, fontweight='bold')
-    axes[2].text(0.01,.46,'C',fontsize=16, transform=fig.transFigure, fontweight='bold')
-    axes[3].text(0.5,.46,'D',fontsize=16, transform=fig.transFigure, fontweight='bold')
+    # axes[0].text(0.01,.94,'A',fontsize=16, transform=fig.transFigure, fontweight='bold')
+    # axes[1].text(0.5,.94,'B',fontsize=16, transform=fig.transFigure, fontweight='bold')
+    # axes[2].text(0.01,.46,'C',fontsize=16, transform=fig.transFigure, fontweight='bold')
+    # axes[3].text(0.5,.46,'D',fontsize=16, transform=fig.transFigure, fontweight='bold')
 
     ######################
     # Texas 1974
@@ -465,6 +811,37 @@ def fig0_create(fnstr,elecstr,elections,seatsbool=False):
     # sns.set_style("ticks")
     # subplot illustrating definition of declination
     fig1_plot_angle(elecstr,ax1,fig,elections,seatsbool)
+
+    # specific examples of declination
+    # fig1_txpa_heat([ax2,ax3,ax4,ax5],fig,elections)
+
+    plt.tight_layout(w_pad=1,h_pad=1)
+    # plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
+
+    output_fig(fig,fnstr)
+    # with open('/home/gswarrin/research/gerrymander/pics/' + fnstr + '.png', 'w') as outfile:
+    #     fig.canvas.print_png(outfile)
+
+    plt.close()
+
+# Fig. 0
+def talk_fig0_create(fnstr,elecstr,elections,seatsbool=False):
+    """
+    """
+    fig = plt.figure(figsize=(scalef*8,scalef*4),dpi=mydpi)
+    fig.patch.set_visible(True)
+    fig.patch.set_facecolor('white')
+
+    ax1 = fig.gca()
+    # ax1 = plt.subplot2grid((7,2), (0,0), colspan=2, rowspan=3)
+    # ax2 = plt.subplot2grid((7,2), (3,0), rowspan=2)
+    # ax3 = plt.subplot2grid((7,2), (3,1), rowspan=2)
+    # ax4 = plt.subplot2grid((7,2), (5,0), rowspan=2)
+    # ax5 = plt.subplot2grid((7,2), (5,1), rowspan=2)
+
+    # sns.set_style("ticks")
+    # subplot illustrating definition of declination
+    talk_fig1_plot_angle(elecstr,ax1,fig,elections,seatsbool)
 
     # specific examples of declination
     # fig1_txpa_heat([ax2,ax3,ax4,ax5],fig,elections)
@@ -583,10 +960,10 @@ def fig_threebad(fnstr,elections):
     plt.close()
 
 # Fig. 1
-def fig_intro(fnstr,vals,ttls,pslopes=True,pdec=True,mylab='Whig fraction'):
+def fig_intro(fnstr,vals,ttls,pslopes=True,pdec=True,mylab='Dem. fraction'):
     """ Make some figures for the Introductory paper
     """
-    fig, axes = plt.subplots(1,len(vals), figsize=(scalef*3*len(vals),scalef*3),dpi=mydpi)
+    fig, axes = plt.subplots(1,len(vals), figsize=(scalef*3.3*len(vals),scalef*3),dpi=mydpi,sharey=True)
     axes = axes.ravel()
 
     fig.patch.set_visible(True)
@@ -600,7 +977,34 @@ def fig_intro(fnstr,vals,ttls,pslopes=True,pdec=True,mylab='Whig fraction'):
                                   lrg=True,plotslopes=pslopes,plotdec=pdec,xaxislab=True,\
                                   ylab=mylab,yaxislab=(i == 0))
         
-    plt.tight_layout() # w_pad=1,h_pad=1)
+    # plt.tight_layout() # w_pad=1,h_pad=1)
+    # plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
+    # fig.subplots_adjust(hspace=3)
+
+    with open('/home/gswarrin/research/gerrymander/pics/' + fnstr + '.png', 'w') as outfile:
+        fig.canvas.print_png(outfile)
+
+    plt.close()
+
+# Fig. 1
+def fig_web(fnstr,vals,ttls,pslopes=True,pdec=True,mylab='Whig fraction'):
+    """ Make some figures for the Introductory paper
+    """
+    fig, axes = plt.subplots(2,2, figsize=(12,12),dpi=mydpi)
+    axes = axes.ravel()
+
+    fig.patch.set_visible(True)
+    fig.patch.set_facecolor('white')
+
+    labls = ['A','B','C','D']
+    for i in range(len(vals)):
+        # axes[i].text(0.02 + .95*i/len(vals),.92,labls[i],fontsize=16, \
+        #              transform=fig.transFigure, fontweight='bold')
+        web_plot_one_declination(axes[i],vals[i],ttls[i],\
+                                  lrg=True,plotslopes=pslopes,plotdec=pdec,xaxislab=True,\
+                                  ylab=mylab,yaxislab=((i%2)==0))
+        
+    # plt.tight_layout() # w_pad=1,h_pad=1)
     # plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
 
     with open('/home/gswarrin/research/gerrymander/pics/' + fnstr + '.png', 'w') as outfile:
@@ -1481,3 +1885,99 @@ def fig_variations(fnstr,elections,cycstates,mmd):
     plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
     plt.close()   
 
+#######################################################################################
+#######################################################################################
+def grid_one_state(fnstr,r,c,chamber,state,elections,mymmd):
+    """ Make grid of angles for paper
+    """
+    nstates = []
+    for yr in [str(1972+2*j) for j in range(23)]:
+        tmpkey = '_'.join([yr,state,chamber])
+        if tmpkey in elections.keys():
+            # print tmpkey
+            elec = elections[tmpkey]
+            # ndem = len(filter(lambda y: y >= 0.5, elec.demfrac))
+            # if elec.Ndists > 1 and (yr not in mymmd or x not in mymmd[yr]) and \
+            #    0 < ndem < elec.Ndists:
+            nstates.append([find_angle(state,elec.demfrac),elec])
+            # print nstates[-1]
+    # nstates.sort(key=lambda x: x[0])
+    # nstates.reverse()
+    # print 'blah',len(nstates)
+    # for x in nstates:
+    #     print x
+    
+    # if 1 == 1:
+    #     return
+    fig, axes = plt.subplots(r,c, figsize=(10*c,10*r), sharex = True, sharey = True) # dpi=mydpi, sharex=True, sharey=True)
+    # plt.gca().set_axis_bgcolor('none')
+    axes = axes.ravel()
+
+    for i,st in enumerate(nstates):
+        xlab = (i > (r-1)*c)
+        ylab = (i%c==0)
+        fig1_plot_one_declination(axes[i],st[1].demfrac,st[1].state + st[1].yr,plotslopes=True,\
+                                  lrg=True,xaxislab=xlab,yaxislab=ylab,plotfullreg=False)
+    for i in range(len(nstates),r*c):
+        axes[i].set_axis_off()
+
+    # figS12_plot_declination_grid(fnstr,r,c,nstates)
+    # plot_declination_grid(fnstr + '-pg1',r,c,yr,chamber,nstates[:24])
+    # plot_declination_grid(fnstr + '-pg2',r,c,yr,chamber,nstates[24:])
+    # plt.tight_layout()
+    plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
+    plt.close()
+
+#######################################################################################
+#######################################################################################
+def grid_from_list(fnstr,r,c,elist,elections,mymmd):
+    """ Make grid of angles for paper
+    """
+    nstates = []
+    for x in elist:
+        elec = elections[x]
+        nstates.append([find_angle(elec.state,elec.demfrac),elec])
+
+    fig, axes = plt.subplots(r,c, figsize=(10*c,10*r), sharex = True, sharey = True)
+    axes = axes.ravel()
+
+    for i,st in enumerate(nstates):
+        xlab = (i > (r-1)*c)
+        ylab = (i%c==0)
+        fig1_plot_one_declination(axes[i],st[1].demfrac,st[1].state + st[1].yr,plotslopes=True,\
+                                  lrg=True,xaxislab=xlab,yaxislab=ylab,plotfullreg=False)
+    for i in range(len(nstates),r*c):
+        axes[i].set_axis_off()
+
+    plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
+    plt.close()
+    
+######################################################################################
+# pictures for talk
+######################################################################################
+
+# Fig. 1
+def talk_intro(fnstr,vals,ttls,pslopes=True,pdec=True,mylab='Whig fraction'):
+    """ Make some figures for the Introductory paper
+    """
+    fig, axes = plt.subplots(1,len(vals), figsize=(scalef*5*len(vals),scalef*3),dpi=mydpi,sharey=True)
+    axes = axes.ravel()
+
+    fig.patch.set_visible(True)
+    fig.patch.set_facecolor('white')
+
+    labls = ['A','B','C','D']
+    for i in range(len(vals)):
+        # axes[i].text(0.02 + .95*i/len(vals),.92,labls[i],fontsize=16, \
+        #              transform=fig.transFigure, fontweight='bold')
+        talk_plot_one_declination(axes[i],vals[i],ttls[i],\
+                                  lrg=True,plotslopes=pslopes,plotdec=pdec,xaxislab=True,\
+                                  ylab=mylab,yaxislab=(i == 0))
+        
+    # plt.tight_layout() # w_pad=1,h_pad=1)
+    # plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
+
+    with open('/home/gswarrin/research/gerrymander/pics/' + fnstr + '.png', 'w') as outfile:
+        fig.canvas.print_png(outfile)
+
+    plt.close()

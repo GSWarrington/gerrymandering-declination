@@ -2,6 +2,7 @@
 
 def read_tsv_2010(fn):
     """
+    07.27.17 - added empty string at end since don't know presidential data (yet?)
     """
     f = open('/home/gswarrin/research/gerrymander/data/' + fn,'r')
     cnt = 0
@@ -87,7 +88,7 @@ def read_tsv_2010(fn):
         # str = [l[hdrs.index('caseid')],myid,newdistid,\
         #         int(l[hdrs.index('v23')]),l[hdrs.index('v21')],incum,winner]
         str = [myid,newdistid,\
-                int(l[hdrs.index('v23')]),party,incum,winner]
+                int(l[hdrs.index('v23')]),party,incum,winner,'']
         ans.append(str)      
         scnt += 1
         # print str
@@ -191,7 +192,8 @@ def read_fec_csv():
     return ans,[repr(x) for x in fecyrs],stateabbrev # should already have all of these states
 
 def read_jacobson_csv():
-    """ for reading in congressional races
+    """ for reading in congressional races; 
+        07.27.17 - added pres votes at end as either empty string or fraction of 1.
     """
     statelist = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',\
        'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH',\
@@ -221,7 +223,8 @@ def read_jacobson_csv():
         # 4 Dem's share of two-party vote
         # 8 unopposed
         # 9 1=District redrawn since last election; 0=not redrawn
-        
+        # 12 major party presidential vote
+
         if l[0] not in yrs:
             yrs.append(l[0])
         stcode = int(l[1][:-2])
@@ -242,6 +245,11 @@ def read_jacobson_csv():
                 dvotes = int(float(l[4])*10)
             else:
                 dvotes = int(l[4])*10
+        if l[12] == ' ' or l[12] == '':
+            pvotes = ''
+        else:
+            pvotes = float(l[12])/100
+
         if dvotes > 1000:
             print "reading jacobson %s %s %s - too many votes!" % (l[0],state,l[1])
         repinc = (l[2] in ['0','5'])
@@ -253,9 +261,9 @@ def read_jacobson_csv():
             continue
         redrawn = (l[9] == '1')
         if not uncontested or dwinner:
-            ans.append([myid,state+l[1],dvotes,'Dem',deminc,dwinner])
+            ans.append([myid,state+l[1],dvotes,'Dem',deminc,dwinner,pvotes])
         if not uncontested or rwinner:
-            ans.append([myid,state+l[1],1000-dvotes,'Rep',repinc,rwinner])
+            ans.append([myid,state+l[1],1000-dvotes,'Rep',repinc,rwinner,pvotes])
         if uncontested:
             print "Uncontested: ",myid,state+l[1],dvotes,dwinner,rwinner
         if (int(l[0]) % 2) == 1:
@@ -267,6 +275,7 @@ def read_jacobson_csv():
 
 def read_2012_state_csv(fn,chamber):
     """ for reading in state races I typed in from Ballotpedia
+    07.27.17 - added empty string at end since don't know presidential vote currently
     """
     stlist = ['00','AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',
               'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH',
@@ -328,9 +337,9 @@ def read_2012_state_csv(fn,chamber):
             print "Skipping race %s %s %s because no winner" % (l[0],state,distcode)
             continue
         if not uncontested or dwinner:
-            ans.append([myid,distcode,int(l[3]),'Dem',deminc,dwinner])
+            ans.append([myid,distcode,int(l[3]),'Dem',deminc,dwinner,''])
         if not uncontested or rwinner:
-            ans.append([myid,distcode,int(l[4]),'Rep',repinc,rwinner])
+            ans.append([myid,distcode,int(l[4]),'Rep',repinc,rwinner,''])
         if uncontested:
             print "Uncontested: ",myid,distcode,l[3],dwinner,rwinner
         # print(ans[-2])
@@ -416,17 +425,11 @@ def init_all():
     """
     loc_arra,loc_yrs,loc_states,loc_mmd_dict = read_all_data()
     loc_elections = make_records(loc_arra)
-    # for x in loc_elections.values():
-        # if x.state == 'LA' and x.yr == '1982' and x.cyc_state == 'LA1':
-            # print "status: ",x.status
-            # print "demfra: ",x.demfrac
     
     cycstates = []
     for elec in loc_elections.values():
         if elec.cyc_state not in cycstates:
             cycstates.append(elec.cyc_state)
-            # if elec.cyc_state[0] == 'L':
-            #     print elec.cyc_state
     
     loc_prior_cycles = create_cycles(loc_elections,loc_mmd_dict,True,False,False)
     loc_recent_cycles = create_cycles(loc_elections,loc_mmd_dict,False,True,True)
@@ -472,7 +475,12 @@ def write_elections(fn,elections,mmd):
                 else:
                     implist = ",,,,,"
                 demfracstr = "%.3f" % (elec.demfrac[i])
-                f.write('Impute,' + str(elec.status[i]) + ',' + demfracstr + ',' + implist + '\n')
+                # 07.27.17 - added presidential vote
+                if elec.pvote[i] == '':
+                    pvotestr = ''
+                else:
+                    pvotestr = "%.3f" % (elec.pvote[i])
+                f.write('Impute,'  + str(elec.status[i]) + ',' + demfracstr + ',' + implist + ',' + pvotestr + '\n')
                 # print out data about democrat candidate
                 c = elec.dcands[i]
                 cname = c.cname.replace(',',';')
@@ -531,7 +539,9 @@ def read_elections(fn):
             elec.status.append(int(l[1]))
             elec.demfrac.append(float(l[2]))
             if elec.status[-1] == 1:
-                elec.impute_data = [float(x) for x in l[3:]]
+                elec.impute_data = [float(x) for x in l[3:-1]]
+                # 07.27.17 - added in presidential vote
+                elec.pvote = l[-1]
             else:
                 elec.impute_data = ['','','','','','']
 

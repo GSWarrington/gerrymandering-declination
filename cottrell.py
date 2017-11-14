@@ -39,59 +39,6 @@ def get_state_actual_probs(yr,st):
     # print yr,tot," expected: ",expd
     return ans
 
-def cottrell_fig2(savefn,st,betav,betac,makepic=False):
-    """ let's regenerate figure 2 so we can play with different logistic models
-    """
-    if makepic:
-        fig, axes = plt.subplots(1,2, figsize=(16,8))
-        axes[0].set_xlim(0,1)
-        axes[0].set_ylim(0,1)
-        axes[1].set_xlim(0,1)
-        axes[1].set_ylim(0,1)
-    
-        axes[0].set_xlabel('District')
-        axes[1].set_xlabel('District')
-        axes[0].set_ylabel('Vote fraction')
-        axes[1].set_ylabel('Prob. dem wins')
-    
-    fn = st + 'simul.txt'
-    f = open('/home/gswarrin/research/gerrymander/data/ChenCottrell/' + fn,'r')
-    simul_votes = [[] for j in range(205)] # list of vote fractions for each of 200 simulations in the state
-    expd_seats = [[] for j in range(205)]  # corresponding expected probability of electing democrat
-    for i,line in enumerate(f):
-        l = line.rstrip().split('\t')
-        l2 = map(lambda x: float(x), l[1:]) # skip simulation number
-        tmp = 0
-        for j in range(len(l2)):
-            simul_votes[i].append(1-l2[j])
-
-        expd_seats[i] = map(lambda x: 1/(1+np.exp(-(betav*x + betac))), simul_votes[i])
-
-        vals = sorted(simul_votes[i])
-        evals = sorted(expd_seats[i])
-        xvals = np.linspace(0+1.0/(2*len(vals)),1-1.0/(2*len(vals)),len(vals))
-        xvals = map(lambda x: x + np.random.rand(1,1)[0][0]/50-0.01, xvals)
-        if makepic:
-            axes[0].scatter(xvals,vals,s=1,color='grey')
-            axes[1].scatter(xvals,evals,s=1,color='grey')
-
-    if makepic:
-        axes[0].axhline(0.5,color='black')
-        axes[1].axhline(0.5,color='black')
-
-    # get expected number of seats in the state from actual district plan
-    actual_plan = sorted(get_state_actual_probs(2012,fn[:2]))
-    actual_prob = map(lambda x: 1/(1+np.exp(-(betav*x + betac))), actual_plan)
-    if makepic:
-        xvals = np.linspace(0+1.0/(2*len(actual_plan)),1-1.0/(2*len(vals)),len(actual_plan))
-        axes[0].scatter(xvals,actual_plan,s=7,color='red')
-        axes[1].scatter(xvals,actual_prob,s=7,color='red')
-        plt.savefig('/home/gswarrin/research/gerrymander/seats/' + savefn)
-        plt.close()
-
-    return [np.sum(actual_prob),np.mean(map(lambda x: np.sum(x), expd_seats))]
-    # print "sim expd: ",
-    # print "act expd: ",
 
 def cottrell_total_seats(betav,betac):
     """ try to figure out how many total seats switched
@@ -120,21 +67,21 @@ def get_expd_seats(vals,betav,betac):
     """
     return np.sum(map(lambda x: 1/(1+np.exp(-(betav*x + betac))), vals))
 
-print get_expd_seats([0.2,0.24,0.28,0.45,0.47,0.53,0.55,0.72,0.76,0.8],17.27,-9.09)
-print get_expd_seats([0.2,0.24,0.28,0.45,0.47,0.49,0.49,0.76,0.82,0.8],17.27,-9.09)
-print get_expd_seats([0.2,0.28,0.34,0.45,0.47,0.49,0.49,0.72,0.76,0.8],17.27,-9.09)
+# print get_expd_seats([0.2,0.24,0.28,0.45,0.47,0.53,0.55,0.72,0.76,0.8],17.27,-9.09)
+# print get_expd_seats([0.2,0.24,0.28,0.45,0.47,0.49,0.49,0.76,0.82,0.8],17.27,-9.09)
+# print get_expd_seats([0.2,0.28,0.34,0.45,0.47,0.49,0.49,0.72,0.76,0.8],17.27,-9.09)
 
-print find_angle('',[0.2,0.24,0.28,0.45,0.47,0.53,0.55,0.72,0.76,0.8])*5
-print find_angle('',[0.2,0.24,0.28,0.45,0.47,0.49,0.49,0.76,0.82,0.8])*5
-print find_angle('',[0.2,0.28,0.34,0.45,0.47,0.49,0.49,0.72,0.76,0.8])*5
+# print find_angle('',[0.2,0.24,0.28,0.45,0.47,0.53,0.55,0.72,0.76,0.8])*5
+# print find_angle('',[0.2,0.24,0.28,0.45,0.47,0.49,0.49,0.76,0.82,0.8])*5
+# print find_angle('',[0.2,0.28,0.34,0.45,0.47,0.49,0.49,0.72,0.76,0.8])*5
 
 # BW
-print "BW:"
-cottrell_total_seats(17.27,-9.09)
+# print "BW:"
+# cottrell_total_seats(17.27,-9.09)
 
 # CC
-print "CC:"
-cottrell_total_seats(21.08,-10.93)
+# print "CC:"
+# cottrell_total_seats(21.08,-10.93)
 
 # cottrell_fig2('cottrell-fig2-FL-BWfit','FL',17.27,-9.09)
 # cottrell_fig2('cottrell-fig2-FL-CCfit','FL',21.08,-10.93)
@@ -151,3 +98,58 @@ cottrell_total_seats(21.08,-10.93)
 # cottrell_fig2('cottrell-fig2-AZ-BWfit','AZ',17.27,-9.09,makepic=False)
 # cottrell_fig2('cottrell-fig2-AZ-CCfit','AZ',21.08,-10.93,makepic=False)
 
+def seats_cottrell_one_state(st,slo=1.05,inter=-0.035):
+    """ 
+    07.27.17 - figure out difference in declination between actual and enacted
+    use presidential vote to guess legislative, then use S-declination
+    """
+    fn = st + 'simul.txt'
+    f = open('/home/gswarrin/research/gerrymander/data/ChenCottrell/' + fn,'r')
+    # list of vote fractions for each of 200 simulations in the state
+    simul_votes = [[] for j in range(205)] 
+    # S-declination for each simulation
+    Sdec = []
+    for i,line in enumerate(f):
+        l = line.rstrip().split('\t')
+        l2 = map(lambda x: float(x), l[1:]) # skip simulation number
+        tmp = 0
+        for j in range(len(l2)):
+            simul_votes[i].append(1-l2[j])
+
+        fa = find_angle('',[inter + slo*x for x in simul_votes[i]])
+        if abs(fa) < 2:
+            Sdec.append(fa*multfact*len(simul_votes[i]))
+
+    # get expected number of seats in the state from actual district plan
+    actual_plan = sorted(get_state_actual_probs(2012,fn[:2]))
+    
+    fa2 = find_angle('',[inter + slo*x for x in actual_plan])
+    if abs(fa2) < 2:
+        Sact = fa2*multfact*len(actual_plan)
+    else:
+        return False,[]
+    
+    print st," sim: %.2f act: %.2f" % (np.mean(Sdec),Sact)
+    return True,[np.mean(Sdec),Sact] # 
+
+def seats_cottrell(slo=1.05,inter=-0.035):
+    """ try to figure out how many total seats switched
+    """
+    act = []
+    sim = []
+    dff = []
+    for st in statelist:
+        if st == 'NV':
+            continue
+        fn = '/home/gswarrin/research/gerrymander/data/ChenCottrell/' + st + 'simul.txt'
+        if os.path.isfile(fn):
+            # print st
+            f = open(fn,'r')
+            bo,l = seats_cottrell_one_state(st,slo,inter)
+            if bo:
+                act.append(l[1])
+                sim.append(l[0])
+                dff.append(round(l[1]-l[0]))
+    print act
+    print sim
+    print "Actual %.1f   Sim: %.1f   Dff: %.1f" % (sum(act),sum(sim),sum(dff))

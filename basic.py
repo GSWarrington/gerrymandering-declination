@@ -45,6 +45,9 @@ def find_angle(st,vals):
     theta = np.arctan((1-2*np.mean(bel))*len(vals)/len(bel))
     gamma = np.arctan((2*np.mean(abo)-1)*len(vals)/len(abo))
     # print "theta: %.3f gamma: %.3f" % (theta,gamma)
+    print gamma,theta
+    print len(bel)*1.0/len(vals)
+    
     return 2.0*(gamma-theta)/3.1415926535 # len(vals). Hah!
     
 def compute_egap_directly(vals):

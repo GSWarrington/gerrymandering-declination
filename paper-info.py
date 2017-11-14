@@ -305,3 +305,20 @@ def count_totally_uncontested(cycles):
                             print "neither",c.chamber,st,yrmin,dist
         print "%s contested: %d uncont: %d (demonly: %d reponly: %d both %d neither %d)" % \
                             (c.chamber,tot_contested,tot_uncontested,tot_demonly,tot_reponly,tot_both,tot_neither)
+
+####################################################################33
+# 
+def bridget_diff(elecs,states,mmd,chm):
+    """ make latex table out of extreme values
+    """
+    ans = []
+    for elec in elecs.values():
+        if elec.chamber == chm and int(elec.yr) >= 1972 and \
+           (elec.chamber == '11' or elec.yr not in mmd.keys() or elec.state not in mmd[elec.yr]) and \
+           elec.Ndists >= 4:
+            ang = find_angle(elec.state,elec.demfrac)
+            zgap = compute_alpha_curve(elec.demfrac,0)
+            mykey = elec.yr + '_' + elec.state + '_' + chm
+            if abs(ang) < 2:
+                print "%s %3d %.2f %.2f %.2f" % (mykey,elec.Ndists,ang,zgap,ang-zgap)
+        

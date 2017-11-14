@@ -395,6 +395,7 @@ class Gerry:
         self.rcands = []                       # Candy: republican candidate in each district
         self.status = []                       # uninit=-1, need to impute=0, has been imputed=1, okay from start=2
         self.demfrac = []                      # dem fraction of vote (only valid if status >= 1)
+        self.pvote = []                        # dem frac of presidential vote
         self.impute_data = []                  # for storing info from multilinear model
         self.unopposed = 0                     # fraction of races that are unopposed
         self.egap = float('NaN')               # efficiency gap
@@ -432,6 +433,7 @@ class Gerry:
         g.status = [self.status[j] for j in range(len(self.status))]
         g.impute_data = [self.impute_data[j] for j in range(len(self.status))]
         g.demfrac = [self.demfrac[j] for j in range(len(self.demfrac))]
+        g.pvote = [self.pvote[j] for j in range(len(self.pvote))]
         g.numpow = [self.numpow[j] for j in range(len(self.numpow))]
         g.gaps = [self.gaps[j] for j in range(len(self.gaps))]
         g.adjgaps = [self.adjgaps[j] for j in range(len(self.adjgaps))]
@@ -810,9 +812,15 @@ def make_records(arr,elections=None,verbose=False):
             elec.status.append(-1)
             elec.impute_data.append(['','','','','','']) # stored with election so easier to print and save
             elec.demfrac.append(0.0)
+            # added 07.27.17 - WARNING
+            # this won't work for data in which we get candidates separately, but
+            # that's not the case for the congressional data, which is the only stuff
+            # we have presidential vote for at the moment
+            elec.pvote.append(x[-1])
             elec.Ndists += 1
             # print "adding at end %s at posn %d" % (x[1],i)
-            
+
+
         if x[3] == 'Dem':
             elec.dcands[i] = Candy(x[0],'NoName','Dem',x[2],x[4],x[5]) # race,name,party,votes,incum,winner
         else:
