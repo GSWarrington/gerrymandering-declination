@@ -10,10 +10,10 @@ def beginning_end_scatter(elections,states):
             if key1 in elections.keys() and key2 in elections.keys():
                 elec1 = elections[key1]
                 elec2 = elections[key2]
-                fa1 = find_angle(elec1.state,elec1.demfrac)
-                fa2 = find_angle(elec2.state,elec2.demfrac)
-                # fa1 = compute_alpha_curve(elec1.demfrac,0)
-                # fa2 = compute_alpha_curve(elec2.demfrac,0)
+                fa1 = get_declination(elec1.state,elec1.demfrac)
+                fa2 = get_declination(elec2.state,elec2.demfrac)
+                # fa1 = get_tau_gap(elec1.demfrac,0)
+                # fa2 = get_tau_gap(elec2.demfrac,0)
                 if elec1.Ndists >= 10 and fa1 > -2 and fa2 > -2:
                     arr1.append(fa1)
                     arr2.append(fa2)

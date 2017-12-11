@@ -354,8 +354,8 @@ def web_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=True
 
     # plot values of metrics
     if plotdec:
-        fa = find_angle('',vals) # *math.log(len(vals))/2
-        eg = compute_alpha_curve(vals,0)
+        fa = get_declination('',vals) # *math.log(len(vals))/2
+        eg = get_tau_gap(vals,0)
         tstr = "D vote = " + ("% .2f" % (np.mean(vals)))
         if abs(fa) >= 2:
             tmpstr  = '$\\delta = N/A$'
@@ -464,8 +464,8 @@ def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
 
     # plot values of metrics
     if plotdec:
-        fa = find_angle('',vals) # *math.log(len(vals))/2
-        eg = compute_alpha_curve(vals,0)
+        fa = get_declination('',vals) # *math.log(len(vals))/2
+        eg = get_tau_gap(vals,0)
         tstr = "D vote = " + ("% .2f" % (np.mean(vals)))
         if abs(fa) >= 2:
             tmpstr  = '$\\delta = N/A$'
@@ -577,8 +577,8 @@ def talk_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
 
     # plot values of metrics
     if plotdec:
-        fa = find_angle('',vals) # *math.log(len(vals))/2
-        eg = compute_alpha_curve(vals,0)
+        fa = get_declination('',vals) # *math.log(len(vals))/2
+        eg = get_tau_gap(vals,0)
         # tstr = "D vote = " + ("% .2f" % (np.mean(vals)))
         if abs(fa) >= 2:
             tmpstr  = '$\\delta = N/A$'
@@ -678,7 +678,7 @@ def fig1_plot_eg(axe,arr,title,plotslopes=True,lrg=True,plotdec=True,xaxislab=Tr
 
     # plot values of metrics
     if plotdec:
-        fa = compute_alpha_curve(vals,0) # *math.log(len(vals))/2
+        fa = get_tau_gap(vals,0) # *math.log(len(vals))/2
         if abs(fa) >= 2:
             tmpstr = '$\\delta = N/A'
         else:
@@ -773,7 +773,7 @@ def fig1_txpa_heat(axes,fig,elections):
     #         'alpha': [(0.0,  0.0, 0.0),(1.0,  1.0, 1.0)]}
     rpb_color = LinearSegmentedColormap('rpb',cdict)
 
-    # print find_angle('',onedarr),compute_alpha_curve(onedarr,0),np.mean(onedarr)
+    # print get_declination('',onedarr),get_tau_gap(onedarr,0),np.mean(onedarr)
 
     df = pd.DataFrame(arr) # , index=index)
     nax = sns.heatmap(df, ax=axes[2], cmap=rpb_color, linewidths=0, vmin=0.3, vmax=0.7)
@@ -1202,7 +1202,7 @@ def fig2_make_heatmap(fnstr,elections,mmd):
     for elec in elections.values():
         if elec.Ndists >= 8 and elec.chamber == '11' and int(elec.yr) >= minyr and int(elec.yr)%2 == 0:
             totcong += 1
-            fang = find_angle(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
+            fang = get_declination(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
             if abs(fang) < 2:
                 ccnt += 1
                 congtmparr[allyrs.index(int(elec.yr))].append(fang)
@@ -1212,7 +1212,7 @@ def fig2_make_heatmap(fnstr,elections,mmd):
         if elec.Ndists >= 8 and elec.chamber == '9' and int(elec.yr) >= minyr and \
            (elec.yr not in mmd.keys() or elec.state not in mmd[elec.yr]) and int(elec.yr)%2 == 0:
             totstate += 1
-            fang = find_angle(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
+            fang = get_declination(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
             if abs(fang) < 2:
                 if int(elec.yr) < 2012:
                     scnt += 1
@@ -1292,7 +1292,7 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
     for elec in elections.values():
         if elec.Ndists >= 8 and elec.chamber == '11' and int(elec.yr) >= minyr and int(elec.yr)%2 == 0:
             totcong += 1
-            fang = find_angle(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
+            fang = get_declination(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
             if abs(fang) < 2:
                 ccnt += 1
                 congtmparr[allyrs.index(int(elec.yr))].append(fang)
@@ -1302,7 +1302,7 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
         if elec.Ndists >= 8 and elec.chamber == '9' and int(elec.yr) >= minyr and \
            (elec.yr not in mmd.keys() or elec.state not in mmd[elec.yr]) and int(elec.yr)%2 == 0:
             totstate += 1
-            fang = find_angle(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
+            fang = get_declination(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
             if abs(fang) < 2:
                 if int(elec.yr) < 2012:
                     scnt += 1
@@ -1368,7 +1368,7 @@ def fig3_scatter(elections,ax,mmd):
     for elec in elections.values():
         if (elec.chamber != 9 or elec.yr not in mmd or elec.state not in mmd[elec.yr]) and \
            int(elec.yr) >= 1972:
-            fa = find_angle('',elec.demfrac)
+            fa = get_declination('',elec.demfrac)
             if abs(fa) < 2:
                 xarr.append(elec.Ndists)
                 yarr.append(abs(fa)*math.log(elec.Ndists)/2)
@@ -1432,7 +1432,7 @@ def fig3_deltae_linechart(elections,cycstates,mmd,yrmin,ax,chamber='9',prtitle=T
                 if elec.Ndists <= 1 or elec.cyc_state != cycstate:
                     continue
                 szs = 1.0*math.log(elec.Ndists)/2
-                aval = find_angle(elec.state,elec.demfrac) 
+                aval = get_declination(elec.state,elec.demfrac) 
                 if aval == None or abs(aval) == 2:
                     continue
                 if aval < curmin:
@@ -1587,14 +1587,14 @@ def data_deltae_threshold(elections):
                 yrmin = 2002
             else:
                 yrmin = 2012
-            curfa = math.log(elec.Ndists)*find_angle('',elec.demfrac)/2
+            curfa = math.log(elec.Ndists)*get_declination('',elec.demfrac)/2
             othfa = []
             for j in range(5):
                 newyr = yrmin + 2*j
                 newid = '_'.join([str(newyr),state,chm])
                 if newid in elections.keys():
                     newelec = elections[newid]
-                    newfa = find_angle('',newelec.demfrac)
+                    newfa = get_declination('',newelec.demfrac)
                     if abs(newfa) < 2:
                         othfa.append(math.log(newelec.Ndists)*newfa/2)
             if len(othfa) == 5:
@@ -1663,7 +1663,7 @@ def figS12_split_dec_states(fnstr,r,c,yr,chamber,states,elections,mymmd):
             ndem = len(filter(lambda y: y >= 0.5, elec.demfrac))
             if elec.Ndists > 1 and (yr not in mymmd or x not in mymmd[yr]) and \
                0 < ndem < elec.Ndists:
-                nstates.append([find_angle(x,elec.demfrac),elec])
+                nstates.append([get_declination(x,elec.demfrac),elec])
     nstates.sort(key=lambda x: x[0])
     nstates.reverse()
     
@@ -1698,8 +1698,8 @@ def figS5_wi_scatter(elections,mmd):
         if 2010 >= int(elec.yr) >= 1972 and \
            (elec.yr not in mmd.keys() or elec.state not in mmd['1972']) and \
             elec.Ndists >= 8 and elec.chamber=='9':
-            ang = find_angle(elec.state,elec.demfrac)
-            zgap = compute_alpha_curve(elec.demfrac,0)
+            ang = get_declination(elec.state,elec.demfrac)
+            zgap = get_tau_gap(elec.demfrac,0)
             cnt += 1
 
             yridx = int((int(elec.yr)-1972)/10)
@@ -1793,7 +1793,7 @@ def fig_pack_crack_all(elections,axl,axr):
 def fig_pack_crack_one(axl,axr,vals,col,sha,mylab,do_pack=True):
     """ pack a standard response distribution until you can't anymore; see what happens to angle
     """
-    origfa = find_angle('',vals)
+    origfa = get_declination('',vals)
     # figure out district we're going to start with
     idx = 0
     while vals[idx] <= 0.5:
@@ -1813,9 +1813,9 @@ def fig_pack_crack_one(axl,axr,vals,col,sha,mylab,do_pack=True):
             vals = narr
             idx += 1
             
-            ans.append([find_angle('',vals)-origfa,vals])
+            ans.append([get_declination('',vals)-origfa,vals])
             # print np.mean(vals) # ,vals
-            # ans.append([compute_alpha_curve(vals,1),vals])
+            # ans.append([get_tau_gap(vals,1),vals])
             # plt.plot(xvals,vals,linestyle='dashed')
             tmp.append(ans[-1][0])
             tmpx.append(len(tmpx)*1.0/len(vals))
@@ -1827,8 +1827,8 @@ def fig_pack_crack_one(axl,axr,vals,col,sha,mylab,do_pack=True):
             idx += 1
             
             if idx < len(vals):
-                ans.append([find_angle('',vals)-origfa,vals])
-                # ans.append([compute_alpha_curve(vals,1),vals])
+                ans.append([get_declination('',vals)-origfa,vals])
+                # ans.append([get_tau_gap(vals,1),vals])
                 # plt.plot(xvals,vals,linestyle='dashed')
                 tmp.append(ans[-1][0])
                 tmpx.append(len(tmpx)*1.0/len(vals))
@@ -1899,7 +1899,7 @@ def grid_one_state(fnstr,r,c,chamber,state,elections,mymmd):
             # ndem = len(filter(lambda y: y >= 0.5, elec.demfrac))
             # if elec.Ndists > 1 and (yr not in mymmd or x not in mymmd[yr]) and \
             #    0 < ndem < elec.Ndists:
-            nstates.append([find_angle(state,elec.demfrac),elec])
+            nstates.append([get_declination(state,elec.demfrac),elec])
             # print nstates[-1]
     # nstates.sort(key=lambda x: x[0])
     # nstates.reverse()
@@ -1936,7 +1936,7 @@ def grid_from_list(fnstr,r,c,elist,elections,mymmd):
     nstates = []
     for x in elist:
         elec = elections[x]
-        nstates.append([find_angle(elec.state,elec.demfrac),elec])
+        nstates.append([get_declination(elec.state,elec.demfrac),elec])
 
     fig, axes = plt.subplots(r,c, figsize=(10*c,10*r), sharex = True, sharey = True)
     axes = axes.ravel()

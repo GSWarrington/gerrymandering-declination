@@ -90,7 +90,7 @@
 #                 hasone = True
 #                 tmp = count_extra_seats(elec.demfrac)
 #                 cnt += tmp
-#                 nseats = find_angle('',elec.demfrac)*elec.Ndists*1.0/2
+#                 nseats = get_declination('',elec.demfrac)*elec.Ndists*1.0/2
 #                 xarr.append(nseats)
 #                 yarr.append(tmp)
 #                 print "Elec %s %s %s %d % .3f % .3f" % (elec.yr,elec.state,elec.chamber,elec.Ndists,nseats,tmp)

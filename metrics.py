@@ -1,3 +1,7 @@
+#########################################################################
+# code to compute tau-gap, EG and declination from vote distribution data
+#########################################################################
+
 def get_tau_gap(vals,tau):
     """ compute tau-gap. 
 
@@ -32,7 +36,7 @@ def get_tau_gap(vals,tau):
 def get_EG(vals):
     """ return the efficiency gap
     """
-    return get_tau_gap(vals)/2
+    return get_tau_gap(vals,0)/2
 
 def get_declination(st,vals):
     """ Get declination.
@@ -49,15 +53,3 @@ def get_declination(st,vals):
 
     return 2.0*(gamma-theta)/3.1415926535 # Enough precision for you?
     
-def get_EG_direct(vals):
-    """
-    """
-    ans = 0
-    for x in vals:
-        if x >= 0.5:
-            ans += (x-0.5) # votes wasted by D winner
-            ans -= (1-x)   # votes wasted by R loser
-        else:
-            ans += x       # votes wasted by D loser
-            ans -= (0.5-x) # votes wasted by R winner
-    return ans/(len(vals))

@@ -71,9 +71,9 @@ def get_expd_seats(vals,betav,betac):
 # print get_expd_seats([0.2,0.24,0.28,0.45,0.47,0.49,0.49,0.76,0.82,0.8],17.27,-9.09)
 # print get_expd_seats([0.2,0.28,0.34,0.45,0.47,0.49,0.49,0.72,0.76,0.8],17.27,-9.09)
 
-# print find_angle('',[0.2,0.24,0.28,0.45,0.47,0.53,0.55,0.72,0.76,0.8])*5
-# print find_angle('',[0.2,0.24,0.28,0.45,0.47,0.49,0.49,0.76,0.82,0.8])*5
-# print find_angle('',[0.2,0.28,0.34,0.45,0.47,0.49,0.49,0.72,0.76,0.8])*5
+# print get_declination('',[0.2,0.24,0.28,0.45,0.47,0.53,0.55,0.72,0.76,0.8])*5
+# print get_declination('',[0.2,0.24,0.28,0.45,0.47,0.49,0.49,0.76,0.82,0.8])*5
+# print get_declination('',[0.2,0.28,0.34,0.45,0.47,0.49,0.49,0.72,0.76,0.8])*5
 
 # BW
 # print "BW:"
@@ -116,14 +116,14 @@ def seats_cottrell_one_state(st,slo=1.05,inter=-0.035):
         for j in range(len(l2)):
             simul_votes[i].append(1-l2[j])
 
-        fa = find_angle('',[inter + slo*x for x in simul_votes[i]])
+        fa = get_declination('',[inter + slo*x for x in simul_votes[i]])
         if abs(fa) < 2:
             Sdec.append(fa*multfact*len(simul_votes[i]))
 
     # get expected number of seats in the state from actual district plan
     actual_plan = sorted(get_state_actual_probs(2012,fn[:2]))
     
-    fa2 = find_angle('',[inter + slo*x for x in actual_plan])
+    fa2 = get_declination('',[inter + slo*x for x in actual_plan])
     if abs(fa2) < 2:
         Sact = fa2*multfact*len(actual_plan)
     else:

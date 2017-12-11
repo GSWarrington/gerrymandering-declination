@@ -1,3 +1,24 @@
+####################################################################3
+# Start: stuff at top I don't think we need
+####################################################################3
+from sage.plot.histogram import Histogram
+
+# load(homepath + 'alpha.py') # for code creating those lines of alphas
+# load(homepath + 'corr.py')  # for investigating correlations
+
+# plot SNR
+# load(homepath + 'snr.py')
+
+import pandas as pday
+import matplotlib.gridspec as gridspec
+
+import matplotlib.colors as mpcol
+
+####################################################################3
+# End: stuff at top I don't think we need
+####################################################################3
+
+
 for i in range(elections['2014_PA_11'].Ndists):
     print i,elections['2014_PA_11'].compute_district_vote(i)
 
@@ -886,7 +907,7 @@ for elec in []: # electionsa.values():
         elec.Ndists >= 8:
         print int((int(elec.yr)-2.0)/10),elec.state,elec.chamber 
         
-print compute_egap_directly([0.7,0.7,0.7,0.54,0.54,0.54,0.54,0.54,0.35,0.35])
+print get_EG_direct([0.7,0.7,0.7,0.54,0.54,0.54,0.54,0.54,0.35,0.35])
 st = 'VA'
 # for yr in ['2002','2004','2006','2008','2010']:
 # for yr in ['1992','1994','1996','1998','2000']:
@@ -894,9 +915,9 @@ for yr in ['1972','1974','1976','1978','1980']:
     elec = electionsa[yr + '_' + st + '_9']
     N = elec.Ndists
     # print 
-    tt = compute_egap_directly(elec.demfrac)
+    tt = get_EG_direct(elec.demfrac)
     print "%.3f %.3f" % (tt,tt*N)
-    print compute_alpha_curve(elec.demfrac,0)/1 # (2.0/N)
+    print get_tau_gap(elec.demfrac,0)/1 # (2.0/N)
     print
 
 ###################################################################################
@@ -1029,7 +1050,7 @@ def min_total_variation(cycle):
                 for k in range(elec.Ndists):
                     vals.append(elec.demfrac[k])
                 for i in range(len(alphavals)):
-                    arr[i][idx] = compute_alpha_curve(vals,alphavals[i])
+                    arr[i][idx] = get_tau_gap(vals,alphavals[i])
             for i in range(len(alphavals)):
                 tmp.append(max(arr[i])-min(arr[i]))
             minval.append(alphavals[tmp.index(min(tmp))])
@@ -1046,7 +1067,7 @@ def plot_options(cycle):
         for elec in c.elecs.values():
             for i in range(len(alphavals)):
                 ans1.append(alphavals[i] + randrange(5)/40)
-                ans2.append(compute_alpha_curve(elec.demfrac,alphavals[i]))
+                ans2.append(get_tau_gap(elec.demfrac,alphavals[i]))
     make_scatter('alpha-poss.png',ans1,ans2)
     
 def list_alpha(cycle):
@@ -1059,7 +1080,7 @@ def list_alpha(cycle):
     for c in cycle:
         for elec in c.elecs.values():
             for i in range(len(alphavals)):
-                tmp = compute_alpha_curve(elec.demfrac,alphavals[i])
+                tmp = get_tau_gap(elec.demfrac,alphavals[i])
                 print "alpha=%.2f %s %s %.3f" % (alphavals[i],elec.yr,elec.state,tmp)
 
 def check_percent(elections):
@@ -1068,10 +1089,10 @@ def check_percent(elections):
     fgap = []
     per = []
     for elec in electionsa.values():
-        duh = compute_alpha_curve(elec.demfrac,1)
+        duh = get_tau_gap(elec.demfrac,1)
         d2 = len(filter(lambda x: x >= 0.5, elec.demfrac))*1.0/elec.Ndists
         if int(elec.yr) >= 1972 and abs(duh) < 0.1 and d2 >= 0.5 and elec.Ndists >= 8 :
-            fgap.append(compute_alpha_curve(elec.demfrac,1))
+            fgap.append(get_tau_gap(elec.demfrac,1))
             per.append(2*(np.mean(elec.demfrac)-1/2)+(1/2-d2))
             print "%.3f, %.3f %s %s %s" % (fgap[-1],per[-1],elec.yr,elec.state,elec.chamber)
     make_scatter('lt',fgap,per)
@@ -1098,8 +1119,8 @@ for x in []: # xvals:
         if int(elec.yr) >= 1982 and \
             int(elec.yr)%2 == 0 and \
             (elec.yr not in mmd_dict.keys() or elec.state not in mmd_dict[elec.yr]):
-            tmp = find_angle(elec.state,elec.demfrac)
-            tmp2 = compute_alpha_curve(elec.demfrac,x)
+            tmp = get_declination(elec.state,elec.demfrac)
+            tmp2 = get_tau_gap(elec.demfrac,x)
             if tmp != None and elec.Ndists >= 8 and tmp <= -0.5 and tmp2 <= -0.3:
                 blah.append(tmp)
                 blah2.append(tmp2)
@@ -1178,7 +1199,7 @@ for yr in ['1982','1984','1986','1988','1990']:
 # for yr in ['1992','1994','1996','1998','2000']:
 # for yr in ['1983','1985','1987','1989','1991']:
     print Melections[yr + '_' + st + '_' + chm].demfrac
-    # print compute_alpha_curve(electionsa[yr + '_' + st + '_' + chm].demfrac,1), find_angle(st,electionsa[yr + '_' + st + '_' + chm].demfrac), compute_egap_directly(electionsa[yr + '_' + st + '_' + chm].demfrac)        
+    # print get_tau_gap(electionsa[yr + '_' + st + '_' + chm].demfrac,1), get_declination(st,electionsa[yr + '_' + st + '_' + chm].demfrac), get_EG_direct(electionsa[yr + '_' + st + '_' + chm].demfrac)        
 
 
 #####################################################################
@@ -1192,3 +1213,962 @@ for yr in ['1982','1984','1986','1988','1990']:
   # delta_V ~ normal(0, sigma_V); # not needed?
 
     
+# _curves('2012',filter(lambda x: x.yr == '2012' and x.chamber == '11', # Melections.values()))
+# compare_corr_coeff(Melections,'11',0.5)
+# for chamber in ['9','11']:
+#     create_anova_csv(Melections,chamber,True)
+#     for val in [0,0.5,1]:
+#         create_anova_csv(Melections,chamber,False,val)
+# create_anova_csv(Melections,'11',True,0.5)
+# for x in [0,0.25,0.5,0.75,1,1.5,2]:
+#     anova_on_corr_coeff(Melections,'11',x)
+
+def compute_thresh(arr):
+    """ see what threshold should be
+    """
+    narr = [x[1] for x in arr]
+    ans = []
+    for t in np.linspace(0,1,101):
+        cur = 0
+        for i in range(5):
+            tmp = filter(lambda x: i*x/4 >= t, narr)
+            cur += len(tmp)*1.0/len(narr)
+        ans.append(cur*1.0/5)
+    make_scatter('thresh',np.linspace(0,1,101),ans)
+    
+def consider_quints(arr):
+    """ try to find threshold without assuming uniform dist
+    """
+    ans = []
+    for t in np.linspace(0,1,101):
+        cur = 0
+        ans.append(len(filter(lambda x: x >= t, arr))*1.0/len(arr))
+        print "%.2f %.2f" % (t,ans[-1])
+    make_scatter('thresh-quint',np.linspace(0,1,101),ans)
+    print min(arr),max(arr)
+
+print len(quints)
+consider_quints(quints)
+# compute_thresh(blah)
+
+def compute_thresh(arr):
+    """ see what threshold should be
+    """
+    narr = [x[1] for x in arr]
+    ans = []
+    for t in np.linspace(0,1,101):
+        cur = 0
+        for i in range(5):
+            tmp = filter(lambda x: i*x/4 >= t, narr)
+            cur += len(tmp)*1.0/len(narr)
+        ans.append(cur*1.0/5)
+    make_scatter('thresh',np.linspace(0,1,101),ans)
+    
+def consider_quints(arr):
+    """ try to find threshold without assuming uniform dist
+    """
+    ans = []
+    for t in np.linspace(0,1,101):
+        cur = 0
+        ans.append(len(filter(lambda x: x >= t, arr))*1.0/len(arr))
+        print "%.2f %.2f" % (t,ans[-1])
+    make_scatter('thresh-quint',np.linspace(0,1,101),ans)
+    print min(arr),max(arr)
+
+print len(quints)
+consider_quints(quints)
+# compute_thresh(blah)
+
+# load(homepath + 'paper-info.py')
+# corr_with_half(Melections)
+# print Mcycstates
+# print Melections['2016_FL_11'].status
+for yr in ['2012','2014','2016']:
+    elec = Melections['_'.join([yr,'WI','9'])]
+    print yr, get_tau_gap(elec.demfrac,0), "%.3f" % (get_declination('',elec.demfrac))
+
+# let's print out lots of different metric-values and differences
+load(homepath + 'plotting.py')
+ans = []
+overall = []
+chm = '9'
+for elec in Melections.values():
+    if int(elec.yr) >= 1972 and elec.chamber == chm and elec.Ndists >= 8 and \
+        1 < len(filter(lambda x: x >= 0.5, elec.demfrac)) < elec.Ndists-1 and \
+        (elec.yr not in Mmmd.keys() or elec.state not in Mmmd[elec.yr]) and \
+        min(elec.demfrac) > 0.05:
+        # compute a few metrics
+        ang = get_declination(elec.state,elec.demfrac)
+        zgap = get_tau_gap(elec.demfrac,0)
+        hgap = get_tau_gap(elec.demfrac,0.5)
+        ogap = get_tau_gap(elec.demfrac,1)
+        tgap = get_tau_gap(elec.demfrac,2)
+        # curvals = [ang,zgap,hgap,ogap,tgap]
+        if ang > -2:
+            # print "%s,%s,N,% 2d,a5,% .3f,z7,% .3f,h9,% .3f,o11,% .3f,t13,% .3f,\
+# az15,%.3f,ah17,%.3f,ao19,%.3f,at21,%.3f,zh23,%.3f,zo25,%.3f,zt27,%.3f,\
+# ho29,%.3f,ht31,%.3f,ot33,%.3f" % \
+#            (elec.yr,elec.state,elec.Ndists,ang,zgap,hgap,ogap,tgap,\
+#            abs(ang-zgap),abs(ang-hgap),abs(ang-ogap),abs(ang-tgap),\
+#            abs(zgap-hgap),abs(zgap-ogap),abs(zgap-tgap),abs(hgap-ogap),abs(hgap-tgap),abs(ogap-tgap))
+            overall.append(elec.Dfrac)
+            print elec.yr,elec.state,"% .3f % .3f" % (elec.Dfrac,ang)
+            ans.append([elec.yr,elec.state,elec.Ndists,ang,zgap,hgap,ogap,tgap,\
+            abs(ang-zgap),abs(ang-hgap),abs(ang-ogap),abs(ang-tgap),\
+            abs(zgap-hgap),abs(zgap-ogap),abs(zgap-tgap),abs(hgap-ogap),abs(hgap-tgap),abs(ogap-tgap)])
+            
+labs = ['','','','Angle','0gap','hgap','1gap','2gap','Angle-0gap','Angle-halfgap','Angle-1gap',\
+        'Angle-2gap','0gap-halfgap','0gap-1gap','0gap-2gap','halfgap-1gap','halfgap-2gap','1gap-2gap']
+statoneidx = [0,0,0,0,1,2,3,4,0,0,0,0,1,1,1,2,2,3]
+stattwoidx = [0,0,0,0,1,2,3,4,1,2,3,4,2,3,4,3,4,4]
+       
+# compute mean and standard deviation for each class...
+# make corresponding histogram
+for i in range(3,18):
+    tmp = []
+    for x in ans:
+        tmp.append(x[i])
+    print labs[i],np.mean(tmp),np.std(tmp)
+    make_histogram('histo-' + chm + '-' + labs[i],tmp)
+    make_scatter('scatter-' + chm + '-' + labs[i],overall,tmp)
+    slope, intercept, r_value, p_value, std_err = stats.linregress(overall,tmp)
+    print "%s: % .3f % .3f % .3f % .3f % .3f" % (labs[i],slope,intercept,r_value, p_value, std_err)
+
+print "moving on to pictures............."
+print "----------------------------------"
+print "----------------------------------"
+for i in range(3,18):
+    # for y in ans:
+    #     print y[3]
+    # print "done sorting"
+    ans.sort(key=lambda x: float(x[i]))
+    # print "moving on"
+    # make page of pictures for each set of extreme cases, pass along labels..."
+    arrlist = []
+    extlist = []
+    statone = []
+    stattwo = []
+    for j in range(12):
+        arrlist.append('_'.join([ans[j][0],ans[j][1],chm]))
+        extlist.append(labs[i] + ("% .3f" % (ans[j][i])))
+        statone.append(labs[3+statoneidx[i]] + ("% .3f" % (ans[j][3+statoneidx[i]])))
+        stattwo.append(labs[3+stattwoidx[i]] + ("% .3f" % (ans[j][3+stattwoidx[i]])))
+        print "%s %s % .3f %2d-th most D %s" % (ans[j][0],ans[j][1],ans[j][i],j,labs[i])
+    plot_extreme_grid('ext-min-' + chm + '-' + labs[i],3,4,arrlist,extlist,statone,stattwo)
+    print " ---------------------- "
+    arrlist = []
+    extlist = []
+    statone = []
+    stattwo = []
+    for j in range(1,13):
+        arrlist.append('_'.join([ans[-j][0],ans[-j][1],chm]))
+        extlist.append(labs[i] + ("% .3f" % (ans[-j][i])))
+        statone.append(labs[3+statoneidx[i]] + ("% .3f" % (ans[-j][3+statoneidx[i]])))
+        stattwo.append(labs[3+stattwoidx[i]] + ("% .3f" % (ans[-j][3+stattwoidx[i]])))
+        print "%s %s % .3f %2d-th most R %s" % (ans[-j][0],ans[-j][1],ans[-j][i],j,labs[i])
+    plot_extreme_grid('ext-max-' + chm + '-' + labs[i],3,4,arrlist,extlist,statone,stattwo)
+    print
+    print " ====================== "
+    print
+
+print get_declination('',Melections['1974_TX_11'].demfrac)
+print np.mean(Melections['1974_TX_11'].demfrac)
+arr = [.42,.47,.52,.57,.62,.67,.72]
+arr = [.425,.475,.525,.575,.625,.675,.725,.775,.825,.875,.925]
+# arr = [.42,.45,.48,.51,.54,.57,.6,.63,.66,.69,.72,.75]
+# arr = [.41,.43,.45,.47,.49,.51,.53,.55,.57,.59,.61,.63,.65,.67,.69,.71,.73,.75]
+print np.mean(arr),get_declination('',arr),get_tau_gap(arr,0)
+
+##############################################################################################3
+
+#################################################################
+# info for paper
+
+load(homepath + 'model.py')
+load(homepath + 'validate.py')
+load(homepath + 'paper-info.py')
+
+# see what RMSE is for imputed values
+# cross_validate can take a long time
+# cross_validate_lots(Mprior,100)
+# compare to just guessing a particular value for the winner
+# dumb_validate(Melections,Myrs,Mstates,3000,0.6)
+# sensitivity(Melections,'9',0.03)
+# fraction_imputed(Melections,'9')
+# race_data(Melections,Mmmd,'9')
+# count_totally_uncontested(Mprior)
+# count_totally_uncontested(Mrecent)
+
+# Table
+Nmmd = dict()
+make_table_one(Nelections,Nmmd,'11')
+
+# SI Table
+# make_latex_table(Melections,Mstates,Mmmd,'11',False)
+# Ndists_table(Melections,Mstates,Mmmd,'9')
+# make_extreme_table(Melections,Mstates,Mmmd,'11')
+
+Mprior[7].leveliii_fit.plot(['win_D'])
+plt.savefig('asdf')
+
+load(homepath + 'results.py')
+overlap([1,2,3,4,5,6,7,8,9],[2,4,3,1,8,7,6,5,9],False)
+compare_allyrs_overlap_sequences(Melections,'2012')
+
+load(homepath + 'results.py')
+
+# compare_avg_overlap_sequences(Melections,'2012')
+# print get_declination('asdf',Melections['2016_MA_11'].demfrac)
+# print Melections['2016_MA_11'].Dfrac
+# average_var_mag(Melections,'11')
+# average_var_mag(Melections,'9')
+
+dans = []
+for elec in Melections.values():
+    if elec.Ndists >= 8 and elec.chamber == '11' and elec.yr == '2012':
+        fa = get_declination(elec.state,elec.demfrac)
+        # fa = get_tau_gap(elec.demfrac,0)
+        if fa > -2:
+            ans.append([elec.state,fa])
+ans.sort(key = lambda x: x[1])
+ans = ans[::-1]
+for x in ans:
+    print x
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+
+"""
+Creating a colormap from a list of colors
+-----------------------------------------
+Creating a colormap from a list of colors can be done with the `from_list`
+method of `LinearSegmentedColormap`. You must pass a list of RGB tuples that
+define the mixture of colors from 0 to 1.
+
+
+Creating custom colormaps
+-------------------------
+It is also possible to create a custom mapping for a colormap. This is
+accomplished by creating dictionary that specifies how the RGB channels
+change from one end of the cmap to the other.
+
+Example: suppose you want red to increase from 0 to 1 over the bottom
+half, green to do the same over the middle half, and blue over the top
+half.  Then you would use:
+
+cdict = {'red':   ((0.0,  0.0, 0.0),
+                   (0.5,  1.0, 1.0),
+                   (1.0,  1.0, 1.0)),
+
+         'green': ((0.0,  0.0, 0.0),
+                   (0.25, 0.0, 0.0),
+                   (0.75, 1.0, 1.0),
+                   (1.0,  1.0, 1.0)),
+
+         'blue':  ((0.0,  0.0, 0.0),
+                   (0.5,  0.0, 0.0),
+                   (1.0,  1.0, 1.0))}
+
+If, as in this example, there are no discontinuities in the r, g, and b
+components, then it is quite simple: the second and third element of
+each tuple, above, is the same--call it "y".  The first element ("x")
+defines interpolation intervals over the full range of 0 to 1, and it
+must span that whole range.  In other words, the values of x divide the
+0-to-1 range into a set of segments, and y gives the end-point color
+values for each segment.
+
+Now consider the green. cdict['green'] is saying that for
+0 <= x <= 0.25, y is zero; no green.
+0.25 < x <= 0.75, y varies linearly from 0 to 1.
+x > 0.75, y remains at 1, full green.
+
+If there are discontinuities, then it is a little more complicated.
+Label the 3 elements in each row in the cdict entry for a given color as
+(x, y0, y1).  Then for values of x between x[i] and x[i+1] the color
+value is interpolated between y1[i] and y0[i+1].
+
+Going back to the cookbook example, look at cdict['red']; because y0 !=
+y1, it is saying that for x from 0 to 0.5, red increases from 0 to 1,
+but then it jumps down, so that for x from 0.5 to 1, red increases from
+0.7 to 1.  Green ramps from 0 to 1 as x goes from 0 to 0.5, then jumps
+back to 0, and ramps back to 1 as x goes from 0.5 to 1.
+
+row i:   x  y0  y1
+                /
+               /
+row i+1: x  y0  y1
+
+Above is an attempt to show that for x in the range x[i] to x[i+1], the
+interpolation is between y1[i] and y0[i+1].  So, y0[0] and y1[-1] are
+never used.
+
+"""
+# Make some illustrative fake data:
+
+x = np.arange(0, np.pi, 0.1)
+y = np.arange(0, 2*np.pi, 0.1)
+X, Y = np.meshgrid(x, y)
+Z = np.cos(X) * np.sin(Y) * 10
+
+
+# --- Colormaps from a list ---
+
+colors = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]  # R -> G -> B
+n_bins = [3, 6, 10, 100]  # Discretizes the interpolation into bins
+cmap_name = 'my_list'
+fig, axs = plt.subplots(2, 2, figsize=(6, 9))
+fig.subplots_adjust(left=0.02, bottom=0.06, right=0.95, top=0.94, wspace=0.05)
+for n_bin, ax in zip(n_bins, axs.ravel()):
+    # Create the colormap
+    cm = LinearSegmentedColormap.from_list(
+        cmap_name, colors, N=n_bin)
+    # Fewer bins will result in "coarser" colomap interpolation
+    im = ax.imshow(Z, interpolation='nearest', origin='lower', cmap=cm)
+    ax.set_title("N bins: %s" % n_bin)
+    fig.colorbar(im, ax=ax)
+
+
+# --- Custom colormaps ---
+
+cdict1 = {'red':   ((0.0, 0.0, 0.0),
+                   (0.5, 0.0, 0.1),
+                   (1.0, 1.0, 1.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'blue':  ((0.0, 0.0, 1.0),
+                   (0.5, 0.1, 0.0),
+                   (1.0, 0.0, 0.0))
+        }
+
+cdict2 = {'red':   ((0.0, 0.0, 0.0),
+                   (0.5, 0.0, 1.0),
+                   (1.0, 0.1, 1.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'blue':  ((0.0, 0.0, 0.1),
+                   (0.5, 1.0, 0.0),
+                   (1.0, 0.0, 0.0))
+        }
+
+cdict3 = {'red':  ((0.0, 0.0, 0.0),
+                   (0.25, 0.0, 0.0),
+                   (0.5, 0.8, 1.0),
+                   (0.75, 1.0, 1.0),
+                   (1.0, 0.4, 1.0)),
+
+         'green': ((0.0, 0.0, 0.0),
+                   (0.25, 0.0, 0.0),
+                   (0.5, 0.9, 0.9),
+                   (0.75, 0.0, 0.0),
+                   (1.0, 0.0, 0.0)),
+
+         'blue':  ((0.0, 0.0, 0.4),
+                   (0.25, 1.0, 1.0),
+                   (0.5, 1.0, 0.8),
+                   (0.75, 0.0, 0.0),
+                   (1.0, 0.0, 0.0))
+        }
+
+# Make a modified version of cdict3 with some transparency
+# in the middle of the range.
+cdict4 = cdict3.copy()
+cdict4['alpha'] = ((0.0, 1.0, 1.0),
+                #   (0.25,1.0, 1.0),
+                   (0.5, 0.3, 0.3),
+                #   (0.75,1.0, 1.0),
+                   (1.0, 1.0, 1.0))
+
+
+# Now we will use this example to illustrate 3 ways of
+# handling custom colormaps.
+# First, the most direct and explicit:
+
+blue_red1 = LinearSegmentedColormap('BlueRed1', cdict1)
+
+# Second, create the map explicitly and register it.
+# Like the first method, this method works with any kind
+# of Colormap, not just
+# a LinearSegmentedColormap:
+
+blue_red2 = LinearSegmentedColormap('BlueRed2', cdict2)
+plt.register_cmap(cmap=blue_red2)
+
+# Third, for LinearSegmentedColormap only,
+# leave everything to register_cmap:
+
+plt.register_cmap(name='BlueRed3', data=cdict3)  # optional lut kwarg
+plt.register_cmap(name='BlueRedAlpha', data=cdict4)
+
+# Make the figure:
+
+fig, axs = plt.subplots(2, 2, figsize=(6, 9))
+fig.subplots_adjust(left=0.02, bottom=0.06, right=0.95, top=0.94, wspace=0.05)
+
+# Make 4 subplots:
+
+im1 = axs[0, 0].imshow(Z, interpolation='nearest', cmap=blue_red1)
+fig.colorbar(im1, ax=axs[0, 0])
+
+cmap = plt.get_cmap('BlueRed2')
+im2 = axs[1, 0].imshow(Z, interpolation='nearest', cmap=cmap)
+fig.colorbar(im2, ax=axs[1, 0])
+
+# Now we will set the third cmap as the default.  One would
+# not normally do this in the middle of a script like this;
+# it is done here just to illustrate the method.
+
+plt.rcParams['image.cmap'] = 'BlueRed3'
+
+im3 = axs[0, 1].imshow(Z, interpolation='nearest')
+fig.colorbar(im3, ax=axs[0, 1])
+axs[0, 1].set_title("Alpha = 1")
+
+# Or as yet another variation, we can replace the rcParams
+# specification *before* the imshow with the following *after*
+# imshow.
+# This sets the new default *and* sets the colormap of the last
+# image-like item plotted via pyplot, if any.
+#
+
+# Draw a line with low zorder so it will be behind the image.
+axs[1, 1].plot([0, 10*np.pi], [0, 20*np.pi], color='c', lw=20, zorder=-1)
+
+im4 = axs[1, 1].imshow(Z, interpolation='nearest')
+fig.colorbar(im4, ax=axs[1, 1])
+
+# Here it is: changing the colormap for the current image and its
+# colorbar after they have been plotted.
+im4.set_cmap('BlueRedAlpha')
+axs[1, 1].set_title("Varying alpha")
+#
+
+fig.suptitle('Custom Blue-Red colormaps', fontsize=16)
+
+plt.show()
+
+###################################
+# paper generate pictures
+
+load(homepath + 'basic.py')
+load(homepath + 'snr.py')
+load(homepath + 'paper-pics.py')
+load(homepath + 'alpha.py')
+load(homepath + 'plotting.py')
+load(homepath + 'results.py')
+load(homepath + 'paper-info.py')
+load(homepath + 'science-stuff.py')
+
+###################################
+# pictures in actual paper
+###################################
+# make_cong_deltaN_histo(Melections)
+# fig2_make_heatmap(Melections,Mmmd)
+# make_heatmap_combine(Melections,Mmmd)
+
+# Fig. 1 - paper-angle-plot-2014_NC_11.png
+# plot_angle('2014_NC_11',Melections)
+
+# Fig. 2 - paperseries.png 
+# ml = ['2012_MD_11','2012_PA_11','2012_TX_11','2012_NY_11']
+# plot_paper_timeseries(Melections,ml)
+
+# Fig. 3 - lineplot_angle_CHAMBER_YRMIN.png
+# make_line_chart(Melections,'2012','11',3)
+blah = []
+quints = []
+make_line_chart_grid(Nelections,'11',Nmmd,True)
+# make_line_chart_grid(Melections,'11',False)
+make_line_chart_grid(Nelections,'9',Nmmd,True)
+# make_line_chart_grid(Melections,'9',False)
+make_scatter('tildedelta-Nxdeld2',[x[0] for x in blah], [x[1] for x in blah])
+slope, intercept, r_value, p_value, std_err = stats.linregress([x[0] for x in blah],[x[1] for x in blah])
+print slope,intercept,r_value,p_value
+b2 = sorted([x[1] for x in blah])
+print "95% CI: ",b2[int(9.5*len(b2)/10)]
+
+# Fig. 4 - wi-ex-scatter.png
+# make_paper_scatter_wi()
+# wi_scatter_decade()
+
+# ???
+# new_plot_timeseries(Melections)
+# make_f_corr_grid('duh',Melections)
+
+# in comparison section
+# plot_nc_tx_pic('nctx',Melections)
+
+###################################
+# pictures in SI
+###################################
+# One year, sorted from most republican to least republican (by angle)
+# {st,cong}-pg{1,2}paper-declination-grade.png
+# switch to 7x5 grid so fits on one page for each
+# split_declination_states('cong2016',7,5,'2016','11',Mstates,Melections,Mmmd)
+# split_declination_states('st2008',7,5,'2008','9',Mstates,Melections,Mmmd)
+
+# si_corr('corr-zero-infty',Melections)
+
+# grids of line charts
+# make_line_chart_grid(Melections,'11')
+# make_line_chart_grid(Melections,'9')
+
+###################################
+# Other pictures not sure where they'll go
+###################################
+# fixed state/chamber over all years
+# angle-plot-ST-CHAMBER.png
+# grid_all_states('',6,4,'11',Mstates,Melections,Mmmd)
+# grid_all_states('',6,4,'9',Mstates,Melections,Mmmd)
+
+# compares gap_* and get_declination
+# curves-YR.png
+# plot_many_alpha
+
+load(homepath + 'stability.py')
+beginning_end_scatter(Melections,Mstates)
+
+load(homepath + 'basic.py')
+load(homepath + 'unpack.py')
+# vals = sorted(Melections['2010_NC_11'].demfrac)
+# print vals
+# print get_declination('',vals)
+# print get_declination('',[0.248, 0.264, 0.288, 0.31, 0.341, 0.501, 0.537, 0.543, 0.548, 0.555, 0.572, 0.593, 0.652])
+# print uncrack_or_unpack([0.1,0.2,0.3,0.3,0.95,1],False)
+# count_extra_seats(Melections['2000_NC_11'].demfrac) # [0.4,0.4,0.4,0.4,0.4,0.9,0.9,0.9,0.9,0.9,0.9])
+# uncrack_or_unpack([0.19,0.21,0.50,0.77],True)
+pack_std(49,.55,1,False)
+
+load(homepath + 'paper-info.py')
+load(homepath + 'read_data.py')
+write_elections('jul-elec-data.csv',Oelections,Ommd)
+# print_extremes(Melections,Mstates,Mmmd,'9')
+Nyrs,Nstates,Ncyc,Nelections = read_elections('elec-data.csv')
+
+# from sklearn.linear_model import LogisticRegression
+# import statsmodels.discrete.discrete_model as sm
+# import statsmodels
+load(homepath + 'read_data.py')
+load(homepath + 'simulation.py')
+load(homepath + 'science-stuff.py')
+# read_logistic()
+# est_state('FLplans27.txt',12.11,-6.1843)
+# compare_dec_all(1996)
+# compare_dec_all(2008)
+# compare_dec_all(2012)
+data_deltae_threshold(Nelections)
+
+def list_cycles(elections):
+    """ go through and list cycles that have been split
+    """
+    for chm in ['11','9']:
+        for yr in [1972 + 2*j for j in range(22)]:
+           yrstr = str(yr)
+           for elec in elections.values():
+               if elec.yr == yrstr and elec.chamber == chm:
+                   if elec.state != elec.cyc_state:
+                       print "%s %s %s %s" % (chm,elec.yr,elec.state,elec.cyc_state)
+# list_cycles(Melections)
+
+# for yr in ['2012','2014','2016']:
+#     elec = Nelections[yr + '_TN_11']
+#     print get_declination('',elec.demfrac),get_tau_gap(elec.demfrac,0)
+print get_tau_gap(Nelections['1974_NC_11'].demfrac,1)
+print get_tau_gap(Nelections['1974_TX_11'].demfrac,1)
+print np.median([1,2])
+
+load(homepath + 'science-stuff.py')
+# sns.reset_orig()
+# fig_variations('fig-var',Nelections,Ncyc,Nmmd)
+# fig_deltae_only('fig-deltae-only',Nelections,Ncyc,Nmmd)
+# fig1_create('fig1-dec-ex','2014_NC_11',Nelections)
+# fig_discuss('fig-discuss',Nelections)
+# make_tiffs()
+print np.mean(Nelections['2012_AZ_11'].demfrac)
+print get_declination('',Nelections['2012_AZ_11'].demfrac)
+print Nelections['2012_AZ_11'].demfrac
+
+# print np.mean(Nelections['2016_TN_11'].demfrac)
+# print get_tau_gap(Nelections['2016_TN_11'].demfrac,0)
+# print get_declination('',Nelections['2016_TN_11'].demfrac)
+# print Nelections['2016_TN_11'].Ndists
+# load(homepath + 'simulation.py')
+# load(homepath + 'cottrell.py')
+# print get_declination('',[.15,.15,.15,.45,.499,.499,\
+# .55,.55,.55,.55,.55,.55,.55,.55,.55,.55,\
+# .752,.85])
+
+load(homepath + 'unpack.py')
+load(homepath + 'seats-simulation.py')
+# pack_or_crack([0.2,0.25,0.3,0.35,0.4,0.45,0.55,0.6,0.7,0.8],False)
+# pack_or_crack([0.55,0.6,0.7,0.9])
+
+# print np.linspace(0,1,10)
+# print mpcol.to_hex()
+# for i in np.linspace(0,1,5):
+#     print plt.cm.Dark2(i)
+# sns.palplot(sns.color_palette("colorblind"))
+# plt.show()
+print np.mean([0.22,0.25,0.28,0.31,0.34,0.37,0.40,0.58,0.61,0.64])
+print get_declination('',[0.23,0.255,0.285,0.32,0.35,0.375,0.405,0.58,0.60,0.61])
+
+print get_tau_gap(Nelections['2016_MN_11'].demfrac,0)
+print get_declination('',Nelections['2016_MN_11'].demfrac)
+print np.mean(Nelections['2016_MN_11'].demfrac)
+# load(homepath + 'paper-info.py')
+# make_table_one(Nelections,Nmmd,'11')
+
+load(homepath + 'science-stuff.py')
+vals = [[0.2,0.24,0.28,0.45,0.47,0.53,0.55,0.72,0.76,0.8],\
+        [0.35,0.41,0.44,0.46,0.48,0.52,0.54,0.56,0.59,0.65],\
+        [0.2,0.22,0.24,0.26,0.28,0.72,0.74,0.76,0.78,0.80]]
+ttls = ['Whig 50%','Whig 50%','Whig 50%']
+fig_eg('talk_fig1',vals,ttls,False,False)
+
+def get_spearman(elections,mmd):
+    """ compute spearmen correlation
+    """
+    farr = []
+    garr = []
+    fig = plt.figure(figsize=(8,8))
+
+    for elec in elections.values():
+        if int(elec.yr) >= 1972 and elec.chamber == '11' and elec.Ndists >= 6:
+            fa = get_declination('',elec.demfrac)
+            if abs(fa) < 2:
+                ga = get_tau_gap(elec.demfrac,0.0)
+                farr.append(fa)
+                garr.append(ga)
+    print len(farr)
+    plt.scatter(farr,garr,s=1)
+    plt.savefig(homepath + 'spear')
+    plt.close()
+    print stats.spearmanr(farr,garr)
+    print stats.pearsonr(farr,garr)
+    
+def usgif_output(elections,mmd):
+    """ print out declination data for purposes of making a big gif
+    """
+    for yr in [1972 + 2*j for j in range(23)]:
+        for elec in elections.values():
+            if int(elec.yr) == yr and elec.chamber == '9' and \
+            (elec.yr not in mmd or elec.state not in mmd[elec.yr]):
+                fa = get_declination('',elec.demfrac)
+                if abs(fa) >= 2:
+                    isok = False
+                else:
+                    isok = True
+                fa_indep = fa*math.log(elec.Ndists)/2
+                fa_seats = fa*elec.Ndists*1.0/2
+                print "%s,%s,%s,%d,%.2f,%.2f,%.2f" % \
+                (elec.yr,elec.state,isok,elec.Ndists,fa,fa_indep,fa_seats)
+
+ttt = []    
+tot = 0       
+for elec in Nelections.values():
+    if elec.chamber == '11' and int(elec.yr) >= 1972 and (int(elec.yr)%4 == 0) and elec.Ndists >= 5 and \
+        len(filter(lambda x: x > 0.5, elec.demfrac)) > 0 and \
+        len(filter(lambda x: x <= 0.5, elec.demfrac)) > 0:
+        tot = tot + 1
+        # print elec.state,elec.Ndists
+        # ttt.append(elec.state)
+print tot
+
+load(homepath + 'unpack.py')
+load(homepath + 'seatspack.py')
+
+load(homepath + 'seats-simulation.py')
+# jeff_data()
+# seat_shifts(Nelections)
+# seats_pack_or_crack([0.1,0.1,0.1,0.1,0.6,0.6,0.6,0.6,0.6],True)
+# create_mpandc_pic('duh',Nelections,Nmmd,'11')
+# print look_at_linearity('ldn1992',1992,2012)
+# plot_diff(1972,2012)
+seats_pack_or_crack([0.34,0.37,0.40,0.43,0.46,0.49,0.6,0.63,0.66],True)
+
+# print get_declination('',Nelections['2016_AL_11'].demfrac)
+# load(homepath + 'seatspack.py')
+# find_diff(Nelections)
+# print np.random.uniform(-0.5,0.5)
+
+load(homepath + 'seatspack.py')
+load(homepath + 'cottrell.py')
+# load(homepath + 'duh.py')
+# Not sure what this does: was not commented out.
+# compare_cong_and_pres()
+# compare_vote_hist(Nelections)
+# cc_percentages()
+# fit = populate_seats_model()
+# print fit
+# fit.plot()
+# print Nelections['2010_PA_11'].status
+# compare_dec(Oelections)
+seats_cottrell(1,0)
+# seat_shifts(Oelections)
+# print Oelections['2012_NC_11'].pvote
+# print Oelections['2008_NC_11'].demfrac
+# print Nelections['2008_NC_11'].demfrac
+# make_scatter('duh',Oelections['2000_FL_11'].demfrac,Oelections['2000_FL_11'].pvote)
+# print stats.linregress(Oelections['2000_FL_11'].demfrac,Oelections['2000_FL_11'].pvote)
+# print Oelections['2000_FL_11'].Dfrac
+
+# print get_declination('',Nelections['2016_TX_11'].demfrac)*len(Nelections['2016_TX_11'].demfrac)/2
+load(homepath + 'science-stuff.py')
+load(homepath + 'seatspack.py')
+load(homepath + 'talk-nc.py')
+
+# plot_judge('superior-4.csv')
+# plot_judge('superior-current.csv')
+
+# 07.27.17 edits to include presidential vote
+
+# load(homepath + 'geographic.py')
+# pr_elecs(Nelections)
+# where it all begins....
+   
+# Oarr,Oyrs,Ostates,Ocycstates,Ommd,Oelections,Oprior,Orecent = init_all()
+# load(homepath + 'read_data.py')
+# write_elections('jul-elec-data.csv',Oelections,Ommd)
+# print np.mean(Nelections['2014_CA_11'].demfrac)
+# print np.mean(Nelections['2016_CA_11'].demfrac)
+# print get_declination('',Nelections['2012_WI_9'].demfrac)*5*99.0/12
+# print get_declination('',Nelections['2014_WI_9'].demfrac)*5*99.0/12
+# print get_declination('',Nelections['2016_WI_9'].demfrac)*5*99.0/12
+# print " asdfasdf ",get_declination('',[.4,.9,.9,.9,.9,.9,.9,.9])
+# print " asdfasdf-------- ",get_declination('',[.3,.9,.9])
+# print get_declination('',Nelections['2012_WI_9'].demfrac)
+# print get_declination('',Nelections['2014_WI_9'].demfrac)
+# print get_declination('',Nelections['2016_WI_9'].demfrac)
+# print get_declination('',Nelections['2012_WI_9'].demfrac)*math.log(99)/2
+# print get_declination('',Nelections['2014_WI_9'].demfrac)*math.log(99)/2
+# print get_declination('',Nelections['2016_WI_9'].demfrac)*math.log(99)/2
+
+bridget_dec_bigger = ['1974_IA_11','1990_GA_11','1996_MA_11','2014_AL_11','2016_TN_11',\
+'2014_LA_11','2010_LA_11','2014_TN_11','2012_AL_11','1972_KS_11','1988_AZ_11','2012_TN_11',\
+'2016_SC_11','2016_KY_11','2014_KY_11','2008_OK_11','1980_OR_11','2014_SC_11','2010_TN_11',\
+'1972_WA_11','2014_MS_11','1984_AZ_11','1976_OK_11','2016_MS_11']
+
+bridget_dec_smaller = ['1980_MA_11','1972_OK_11','1976_AR_11','2008_OR_11','1986_AR_11',\
+'2014_IA_11','1982_OK_11','2016_MD_11','1990_MA_11','1972_GA_11','2008_MD_11','1974_MA_11',\
+'1982_MD_11','1984_MA_11','1980_MD_11','1980_GA_11','1976_TX_11','2012_MD_11','1982_MA_11',\
+'1988_MA_11','1986_MA_11','1974_TX_11','2008_NY_11','1996_IA_11']
+
+load(homepath + 'paper-info.py')
+load(homepath + 'science-stuff.py')
+# bridget_diff(Nelections,Nstates,Nmmd,'11')
+grid_from_list('dec_bigger',6,4,bridget_dec_bigger,Nelections,Nmmd)
+grid_from_list('dec_smaller',6,4,bridget_dec_smaller,Nelections,Nmmd)
+# print np.mean(Nelections['1996_IA_11'].demfrac)
+
+# look into geographic bias
+# load(homepath + 'geographic.py')
+load(homepath + 'science-stuff.py')
+for st in Nstates:
+    grid_one_state('augangle-' + st,6,4,'11',st,Nelections,Nmmd)
+# grid_one_state('blake-NC',6,4,'11','NC',Nelections,Nmmd)
+# print math.log(1024,2)
+# print math.pow(2,8)
+# ststr = '_CA_11'
+# for yr in [str(1972 + 2*j) for j in range(23)]:
+#     print yr + ' ' + ststr[1:3] + ': ',
+#     for i,v in enumerate(Nelections[yr + ststr].demfrac):
+#         if Nelections[yr + ststr].status[i] == 2:
+#             print "%.3f" % (v),
+#         else:
+#             print "%.2f*" % (v),
+#     print
+    # print Nelections[yr + '_NC_11'].demfrac
+    # print Nelections[yr + '_NC_11'].status
+
+load(homepath + 'basic.py')
+print get_declination('',Nelections['2012_NC_11'].demfrac)
+print(sorted(Nelections['2012_NC_11'].demfrac))
+# print get_declination??
+
+################################################################################
+
+# load(homepath + 'multilevelseats.py')
+load(homepath + 'duh.py')
+# Not sure what this does: was not commented out.
+# compare_cong_and_pres()
+# compare_vote_hist(Nelections)
+# cc_percentages()
+fit = populate_seats_model()
+print fit
+fit.plot()
+
+
+import os.path
+import scipy.odr as odr
+
+def f(B, x):
+    '''Linear function y = m*x + b'''
+    # B is a vector of the parameters.
+    # x is an array of the current x values.
+    # x is in the same format as the x passed to Data or RealData.
+    #
+    # Return an array in the same format as y passed to Data or RealData.
+    return B[0]*x + B[1]
+linear = odr.Model(f)
+
+statelist = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI',\
+    'ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE',\
+    'NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN',\
+    'TX','UT','VT','VA','WA','WV','WI','WY']    
+
+lowran = list(np.random.normal(0.35,0.09,300000))
+hiran = list(np.random.normal(0.65,0.09,500000))
+hlist = []
+plist = []
+pskip = 0
+hskip = 0
+stddevarr = []
+skewarr = []
+kurtarr = []
+for st in ['PA']: # statelist:
+    for yr in ['2008']: # ,'2004','2008','2012']:
+        print st,yr
+        fname = homepath + 'seats/data/' + st + '_' + yr + '.tab'
+        if not os.path.isfile(fname):
+            print "Missing: ",st
+            continue
+        df = pd.read_csv(fname,sep='\t')
+        HstrD = 'g' + yr + '_USH_dv'
+        HstrR = 'g' + yr + '_USH_rv'
+        PstrD = 'g' + yr + '_USP_dv'
+        PstrR = 'g' + yr + '_USP_rv'
+        stdH = None
+        stdP = None
+        skewH = None
+        skewP = None
+        kurtH = None
+        kurtP = None
+        # print df.columns:
+        if HstrD in df.columns and HstrR in df.columns:
+            df['house_per'] = df[HstrD]/(df[HstrD] + df[HstrR])
+            # tdf = df[(df['house_per'] < 0.99) & (df['house_per'] > 0.01)]
+            df['house_per'] = df['house_per'].apply(lambda x: lowran.pop() if x < 0.01 else x)
+            df['house_per'] = df['house_per'].apply(lambda x: hiran.pop() if x > 0.99 else x)
+            df['house_per'].hist(bins=40,alpha=0.75,color='red',normed=True)
+            hlist.extend(df['house_per'].values)
+            stdH = df['house_per'].std()
+            skewH = df['house_per'].skew()
+            kurtH = df['house_per'].kurt()
+        else:
+            pskip += 1
+        if PstrD in df.columns and PstrR in df.columns:
+            df['pres_per'] = df[PstrD]/(df[PstrD] + df[PstrR])
+            tdf = df[(df['pres_per'] < 0.99) & (df['pres_per'] > 0.01)]
+            tdf['pres_per'].hist(bins=40,alpha=0.75,color='green',normed=True)
+            plist.extend(tdf['pres_per'].values)
+            stdP = tdf['pres_per'].std()
+            skewP = tdf['pres_per'].skew()
+            kurtP = tdf['pres_per'].kurt()
+        else:
+            hskip += 1
+        if stdH != None and stdP != None:
+            stddevarr.append([stdH,stdP])
+        if skewH != None and skewP != None:
+            skewarr.append([skewH,skewP])
+        if kurtH != None and kurtP != None:
+            kurtarr.append([kurtH,kurtP])
+        plt.savefig(homepath + 'seats/' + st + '-' + yr + '-hist')
+        plt.close()  
+        
+fig = plt.figure(figsize=(8,4))
+plt.hist(plist,bins=20,facecolor='b',alpha=0.75)
+plt.hist(hlist,bins=20,facecolor='r',alpha=0.75)
+plt.savefig(homepath + 'pa-precincts-mod4')
+plt.close()      
+print "pskip: ",pskip," hskip: ",hskip
+
+
+#####################
+print stats.linregress([x[0] for x in stddevarr], [x[1] for x in stddevarr])
+
+mydata = odr.Data([x[0] for x in stddevarr], [x[1] for x in stddevarr])
+myodr = odr.ODR(mydata, linear, beta0=[1., 0.])
+myoutput = myodr.run()
+myoutput.pprint()
+print myoutput.sum_square
+
+fig = plt.figure(figsize=(8,8))
+plt.scatter([x[0] for x in stddevarr], [x[1] for x in stddevarr])
+plt.savefig(homepath + 'all-stddev-mod4')
+plt.close()
+
+#####################
+print stats.linregress([x[0] for x in skewarr], [x[1] for x in skewarr])
+
+mydata = odr.Data([x[0] for x in skewarr], [x[1] for x in skewarr])
+myodr = odr.ODR(mydata, linear, beta0=[1., 0.])
+myoutput = myodr.run()
+myoutput.pprint()
+print myoutput.sum_square
+
+fig = plt.figure(figsize=(8,8))
+plt.scatter([x[0] for x in skewarr], [x[1] for x in skewarr])
+plt.savefig(homepath + 'all-skew-mod4')
+plt.close()
+
+####################
+print stats.linregress([x[0] for x in kurtarr], [x[1] for x in kurtarr])
+
+mydata = odr.Data([x[0] for x in kurtarr], [x[1] for x in kurtarr])
+myodr = odr.ODR(mydata, linear, beta0=[1., 0.])
+myoutput = myodr.run()
+myoutput.pprint()
+print myoutput.sum_square
+
+fig = plt.figure(figsize=(8,8))
+plt.scatter([x[0] for x in kurtarr], [x[1] for x in kurtarr])
+plt.savefig(homepath + 'all-kurt-mod4')
+plt.close()
+
+tndf = pd.read_csv(homepath + 'data/TN_2006.tab',sep='\t')
+tndf['house_per'] = tndf['g2006_USH_dv']/tndf['g2006_USH_tv'] 
+# # # (df['g2010_USH_dv']+df['g2010_USH_rv'])
+# txdf['pres_per'] = txdf['g2008_USP_dv']/txdf['g2008_USP_tv']
+tndf['house_per'].hist(bins=40,alpha=0.75,color='red',normed=True)
+# txdf['pres_per'].hist(bins=40,alpha=0.75,color='green',normed=True)
+plt.savefig(homepath + 'tnhist')
+plt.close()
+
+txdf['house_per'] = txdf['g2008_USH_dv']/txdf['g2008_USH_tv'] 
+# # # (df['g2010_USH_dv']+df['g2010_USH_rv'])
+txdf['pres_per'] = txdf['g2008_USP_dv']/txdf['g2008_USP_tv']
+txdf['house_per'].hist(bins=40,alpha=0.75,color='red',normed=True)
+txdf['pres_per'].hist(bins=40,alpha=0.75,color='green',normed=True)
+plt.savefig(homepath + 'txhist')
+plt.close()
+
+txdf = pd.read_csv(homepath + 'data/TX_2008.tab',sep='\t')
+print txdf.columns
+
+fldf['house_per'] = fldf['g2010_USH_dv']/fldf['g2010_USH_tv'] 
+# # # (df['g2010_USH_dv']+df['g2010_USH_rv'])
+fldf['house_per'].hist(bins=40)
+plt.savefig(homepath + 'ddd')
+
+fldf = pd.read_csv(homepath + 'data/FL_2010.tab',sep='\t')
+print fldf.columns
+
+# for x in fit["delta_V"]:
+#     print x
+# print(hfit, pars=c("alpha","beta[1]","beta[2]","beta[3]","beta[4]","sigma"), 
+# +       probs = c(0.025, 0.50, 0.975), digits_summary=3)
+
+# plt.savefig('plot-chains')
+# plt.close()
+fit.traceplot('delta_V')
+plt.savefig('/home/gswarrin/research/gerrymander/deltav-4x8')
+plt.close()
+fit.traceplot('v_0l')
+plt.savefig('/home/gswarrin/research/gerrymander/year-4x8')
+plt.close()
+
+

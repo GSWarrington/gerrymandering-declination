@@ -24,12 +24,12 @@ def min_correlation(elecs):
         if 2010 >= int(elec.yr) >= 1972 and elec.chamber=='11' and \
         (elec.yr not in Mmmd.keys() or elec.state not in Mmmd[elec.yr]): # and \
             # elec.state in ['NC','PA','FL']: # and elec.Ndists >= 8:
-            tmp = compute_alpha_curve(elec.demfrac,alphavals[zidx])
+            tmp = get_tau_gap(elec.demfrac,alphavals[zidx])
             if 1 == 1: # abs(tmp) < 0.05:
                 for i in range(len(alphavals)):
                     print elec.state,elec.yr
                 # tmp = 
-                    arr[i].append(compute_alpha_curve(elec.demfrac,alphavals[i]))
+                    arr[i].append(get_tau_gap(elec.demfrac,alphavals[i]))
                 # print i,alphavals[i],arr[i][-1]
     labs = []
     for i in range(len(alphavals)):

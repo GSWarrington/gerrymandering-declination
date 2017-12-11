@@ -138,8 +138,8 @@ def plot_paper_timeseries(elections,ckeys):
         l = []
         for elec in filter(lambda y: y.state == st and int(y.yr) >= 1972 and \
                            y.chamber == chamber, elections.values()):
-            # b = compute_alpha_curve(elec.demfrac,1)
-            b = find_angle(elec.state,elec.demfrac)
+            # b = get_tau_gap(elec.demfrac,1)
+            b = get_declination(elec.state,elec.demfrac)
             l.append([elec.yr,b])
         l = sorted(l)
         labs.append(st)
@@ -249,7 +249,7 @@ def split_declination_states(fnstr,c,r,yr,chamber,states,elections,mymmd):
             ndem = len(filter(lambda y: y >= 0.5, elec.demfrac))
             if elec.Ndists > 1 and (yr not in mymmd or x not in mymmd[yr]) and \
                0 < ndem < elec.Ndists:
-                nstates.append([find_angle(x,elec.demfrac),elec])
+                nstates.append([get_declination(x,elec.demfrac),elec])
     nstates.sort(key=lambda x: x[0])
     nstates.reverse()
     
@@ -275,7 +275,7 @@ def grid_one_state(fnstr,c,r,chamber,st,elections,mymmd):
             elec = elections[tmpkey]
             maxdists = max(elec.Ndists,maxdists)
             if elec.Ndists > 1 and (chamber == '11' or yr not in mymmd or st not in mymmd[yr]):
-                nstates.append([find_angle(x,elec.demfrac),elec])
+                nstates.append([get_declination(x,elec.demfrac),elec])
     # didn't have more than one district at any point
     # if maxdists == 1:
     #     return
@@ -319,7 +319,7 @@ def plot_nc_tx_pic(fnstr,elections):
              'blue':  [(0.0,  0.0, 0.0),(1.0,  1.0, 1.0)]}
     rpb_color = LinearSegmentedColormap('rpb',cdict)
 
-    # print find_angle('',onedarr),compute_alpha_curve(onedarr,0),np.mean(onedarr)
+    # print get_declination('',onedarr),get_tau_gap(onedarr,0),np.mean(onedarr)
 
     df = pd.DataFrame(arr) # , index=index)
     nax = sns.heatmap(df, ax=axes[2], cmap=rpb_color, linewidths=0, vmin=0.3, vmax=0.7)
@@ -360,7 +360,7 @@ def plot_one_declination(axe,arr,title,plotdec=True,xaxislab=True,yaxislab=True,
 
     # plot values of metrics
     if plotdec:
-        fa = find_angle('',vals)
+        fa = get_declination('',vals)
         if abs(fa) >= 2:
             tmpstr = '$\\delta = N/A'
         else:
@@ -436,7 +436,7 @@ def plot_declination_grid(fnstr,c,r,arrlist,titles=[]):
         else:
             tmpstr = '$\\delta = ' + ("% .2f$" % (k[0]))
         axes[i].annotate(tmpstr, (0.02,0.84))
-        # tmpstr = '$\mathrm{Gap}_1 = ' + ("% .3f$" % (compute_alpha_curve(elec.demfrac,1)))
+        # tmpstr = '$\mathrm{Gap}_1 = ' + ("% .3f$" % (get_tau_gap(elec.demfrac,1)))
         # axes[i].annotate(tmpstr, (0.34,0.02))
 
         axes[i].get_xaxis().set_ticks([])
@@ -480,10 +480,10 @@ def make_paper_scatter_wi():
         # print "yr: ",elec.yr
         if 2022 >= int(elec.yr) >= 1972 and (elec.yr not in Mmmd.keys() or elec.state not in Mmmd[elec.yr]) and \
             elec.Ndists >= 8 and elec.chamber=='9':
-            ang = find_angle(elec.state,elec.demfrac)
-            agap = compute_alpha_curve(elec.demfrac,1)
-            zgap = compute_alpha_curve(elec.demfrac,0)
-            qgap = compute_alpha_curve(elec.demfrac,0.5)
+            ang = get_declination(elec.state,elec.demfrac)
+            agap = get_tau_gap(elec.demfrac,1)
+            zgap = get_tau_gap(elec.demfrac,0)
+            qgap = get_tau_gap(elec.demfrac,0.5)
 
             if ang != 0:
                 lang.append(ang)
@@ -522,8 +522,8 @@ def wi_scatter_decade():
         if 2010 >= int(elec.yr) >= 1972 and \
            elec.state not in Mmmd['1972'] and \
             elec.Ndists >= 8 and elec.chamber=='9':
-            ang = find_angle(elec.state,elec.demfrac)
-            zgap = compute_alpha_curve(elec.demfrac,0)
+            ang = get_declination(elec.state,elec.demfrac)
+            zgap = get_tau_gap(elec.demfrac,0)
             cnt += 1
 
             yridx = int((int(elec.yr)-1972)/10)
@@ -596,10 +596,10 @@ def make_line_chart(elections,yrmin,chamber='9',num=5):
                         szs = 1.0
                     else:
                         szs = 1.0 # elec.Ndists*1.0/2
-                aval = find_angle(elec.state,elec.demfrac) # 
-                # aval = compute_alpha_curve(elec.demfrac,1)
-                # aval = compute_alpha_curve(elec.demfrac,1)
-                # aval = -compute_egap_directly(elec.demfrac)
+                aval = get_declination(elec.state,elec.demfrac) # 
+                # aval = get_tau_gap(elec.demfrac,1)
+                # aval = get_tau_gap(elec.demfrac,1)
+                # aval = -get_EG_direct(elec.demfrac)
                 if aval == None:
                     continue
                 if aval < curmin:
@@ -681,7 +681,7 @@ def make_line_chart_grid(elections,chamber,mmd,useseats=False):
                         szs = 1.0 
                     if szs == 1.0 and useseats:
                         szs = math.log(elec.Ndists)/2 # math.log(elec.Ndists)*1.0/2
-                    aval = find_angle(elec.cyc_state,elec.demfrac) # 
+                    aval = get_declination(elec.cyc_state,elec.demfrac) # 
                     curcyc.append(aval*szs)
                     if abs(aval) > 2:
                         continue
@@ -756,7 +756,7 @@ def beyond_zero(elecs,mmd,thresh = 0.65):
     for elec in elecs.values():
         if int(elec.yr) >= 1972 and \
            (elec.chamber == '11' or elec.yr not in mmd.keys() or (elec.state not in mmd[elec.yr])):
-            fa = find_angle('',elec.demfrac)
+            fa = get_declination('',elec.demfrac)
             if abs(fa) < 2 and abs(fa*math.log(elec.Ndists)/2) > thresh:
                 print "%s %s %s % .2f %.2f" % (elec.yr,elec.chamber,elec.state,fa,abs(fa*math.log(elec.Ndists)/2))
                 
@@ -773,7 +773,7 @@ def si_corr(fn,elecs):
     for elec in elecs.values():
         if int(elec.yr) >= 1972 and elec.chamber=='11' and elec.Ndists >= 8:
             for i in range(len(alphavals)):
-                arr[i].append(compute_alpha_curve(elec.demfrac,alphavals[i]))
+                arr[i].append(get_tau_gap(elec.demfrac,alphavals[i]))
     labs = []
     for i in range(len(alphavals)):
         a1,pv1 = stats.pearsonr(arr[0],arr[i]) # correlation with tau=-10 (total seats)
@@ -837,7 +837,7 @@ def figS23_line_chart_grid(elections,chamber,mmd):
                         # print "elec.cyc_state != cycstate",elec.cyc_state,cycstate
                         continue
                     szs = math.log(elec.Ndists)/2 # math.log(elec.Ndists)*1.0/2
-                    aval = find_angle(elec.cyc_state,elec.demfrac) # 
+                    aval = get_declination(elec.cyc_state,elec.demfrac) # 
                     curcyc.append(aval*szs)
                     if abs(aval) >= 2:
                         continue

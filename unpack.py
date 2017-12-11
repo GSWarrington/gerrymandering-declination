@@ -81,7 +81,7 @@ def pack_or_crack(arr,crack=True,verbose=False):
         nval = 0.5
         diff = narr[idx]-nval
         if room < diff:
-            print "Not enough room to crack votes; returning original"
+            # print "Not enough room to crack votes; returning original"
             return False,arr
 
     # iteratively move the votes
@@ -106,7 +106,6 @@ def pack_or_crack(arr,crack=True,verbose=False):
         if not allfit:
             while narr[enidx-1] == maxval:
                 enidx -= 1
-        # print "blah: ",narr
     return True,narr
 
 ###############################################################################
@@ -195,7 +194,7 @@ def pack_std(N,demfrac,resp=2,do_pack=True):
     while vals[idx] <= 0.5:
         idx += 1
 
-    ans.append([find_angle('',vals),vals])
+    ans.append([get_declination('',vals),vals])
     plt.plot(xvals,vals,'ro')
     tmp = [ans[-1][0]]
 
@@ -206,9 +205,9 @@ def pack_std(N,demfrac,resp=2,do_pack=True):
             vals = narr
             idx += 1
             
-            ans.append([find_angle('',vals),vals])
+            ans.append([get_declination('',vals),vals])
             print np.mean(vals),vals
-            # ans.append([compute_alpha_curve(vals,1),vals])
+            # ans.append([get_tau_gap(vals,1),vals])
             plt.plot(xvals,vals,linestyle='dashed')
             tmp.append(ans[-1][0])
     else:
@@ -219,8 +218,8 @@ def pack_std(N,demfrac,resp=2,do_pack=True):
             idx += 1
             
             if idx < N:
-                ans.append([find_angle('',vals),vals])
-                # ans.append([compute_alpha_curve(vals,1),vals])
+                ans.append([get_declination('',vals),vals])
+                # ans.append([get_tau_gap(vals,1),vals])
                 plt.plot(xvals,vals,linestyle='dashed')
                 tmp.append(ans[-1][0])
             else:
@@ -237,7 +236,7 @@ def count_extra_seats(vals,verbose=False):
     """ straighten out via unpacking/uncracking as efficiently as possible
     assume angle is positive (gerrymandered in favor of republicans)
     """
-    fa = find_angle('',vals)
+    fa = get_declination('',vals)
     if fa < 0:
         nvals = sorted([1-x for x in vals])
         return -count_extra_seats_dem(nvals,verbose)
@@ -252,16 +251,16 @@ def count_extra_seats_dem(vals,verbose=False):
     notdone = True
     cnt = 0
     arr = sorted([x for x in vals])
-    fa_cur = find_angle('',arr)
+    fa_cur = get_declination('',arr)
     while notdone and cnt < 200:
         bc,narrc = uncrack_or_unpack(arr,True)
         bp,narrp = uncrack_or_unpack(arr,False)
         fa_crack = 'None'
         fa_pack = 'None'
         if bc:
-            fa_crack = find_angle('',narrc)
+            fa_crack = get_declination('',narrc)
         if bp:
-            fa_pack = find_angle('',narrp)
+            fa_pack = get_declination('',narrp)
         if verbose:
             print "CUR: ",fa_cur,arr
             print "crack: ",bc,fa_crack,["%.3f" % (x) for x in narrc]
@@ -289,7 +288,7 @@ def count_extra_seats_dem(vals,verbose=False):
                 next_move = 'Pack'
                 fa_cur = fa_pack
         elif bc:
-            # fa_crack = find_angle('',narrc)
+            # fa_crack = get_declination('',narrc)
             if abs(fa_crack) < abs(fa_cur):
                 arr = narrc
                 next_move = 'Crack'
@@ -297,7 +296,7 @@ def count_extra_seats_dem(vals,verbose=False):
             else:
                 return cnt
         elif bp:
-            # fa_pack = find_angle('',narrp)
+            # fa_pack = get_declination('',narrp)
             if abs(fa_pack) < abs(fa_cur):
                 arr = narrp
                 next_move = 'Pack'
@@ -327,7 +326,7 @@ def chart_dec_total(elections,mmd,chamber):
                 hasone = True
                 tmp = count_extra_seats(elec.demfrac)
                 cnt += tmp
-                nseats = find_angle('',elec.demfrac)*elec.Ndists*1.0/2
+                nseats = get_declination('',elec.demfrac)*elec.Ndists*1.0/2
                 xarr.append(nseats)
                 yarr.append(tmp)
                 print "Elec %s %s %s %d % .3f % .3f" % (elec.yr,elec.state,elec.chamber,elec.Ndists,nseats,tmp)
@@ -345,20 +344,3 @@ def chart_dec_total(elections,mmd,chamber):
     plt.savefig('/home/gswarrin/research/gerrymander/pics/seatsovertime-scatter' + chamber)
     plt.close()
 
-#     # get relevant parameters
-#     N = len(narr)
-#     k = len(filter(lambda x: x <= 0.5, narr))
-#     kp = N-k
-
-#     # 
-
-#     k = 0
-#     while k < len(arr) and arr[k] <= 0.5:
-#         k += 1
-#     if k == len(arr):
-#         print "
-#         return
-
-#     dec = find_angle('',arr)
-    
-# def 

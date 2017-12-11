@@ -9,7 +9,7 @@ def plot_alpha_curves(vals,xmax=3,fn='alphaseries'):
     plt.figure(figsize=(8,8))
     plt.axis([xmin,xmax,-0.5,0.5])
 
-    y = [compute_alpha_curve(vals,x[i]) for i in range(len(x))]
+    y = [get_tau_gap(vals,x[i]) for i in range(len(x))]
     # print y
     plt.plot(x,y)
     plt.grid(True)
@@ -28,15 +28,15 @@ def plot_many_alpha_curves(tmpstr,elecs,xmax=3):
 
     for elec in elecs:
         if elec.Ndists >= 6:
-            y = [compute_alpha_curve(elec.demfrac,x[i]) for i in range(len(x))]
-            # y = [find_angle(elec.state,elec.demfrac) for i in range(len(x))]
+            y = [get_tau_gap(elec.demfrac,x[i]) for i in range(len(x))]
+            # y = [get_declination(elec.state,elec.demfrac) for i in range(len(x))]
             plt.plot(x,y)
-            # get find_angle value and plot a dot there
-            fa = find_angle(elec.state,elec.demfrac)
+            # get get_declination value and plot a dot there
+            fa = get_declination(elec.state,elec.demfrac)
             z = [abs(y[i]-fa) for i in range(len(x))]
             j = z.index(min(z))
             if fa >= -1:
-                print "%s %.3f" % (elec.state,fa-compute_alpha_curve(elec.demfrac,0))
+                print "%s %.3f" % (elec.state,fa-get_tau_gap(elec.demfrac,0))
                 plt.plot(x[j],fa,'ro')
 
     plt.grid(True)

@@ -5,66 +5,80 @@
 # - then i need to get into a state that's ready for imputation
 # - okay from the start, need to impute, has been imputed
 
+# functions
+# make_records - makes records from raw data read in from read_all_data()
+# - get_cyc_state() - modify state name to account for different plans in the same decade
+# - regularize_races() - create dummy candidates for uncontested races so no null (ie, None) fields
+#                      - flag races that need to be imputed
+# TODO: Currently in read_data - but called from classes. Move?
+# - correct_errors() - manually override a few races
 
+############################################
+# 11.30.17
+# Cycle
+#   * get_model_input_data
+#   * fit_model
+#   * populate_elections
+#   * get_new_dist_data
+#   * impute_votes
+#
+# Candy
+#   mycopy
+#
+# Gerry
+#   mycopy
+#   myprint
+#   * regularize_races
+#
+# * get_cyc_state
+# * make_records
+# * print_race
+# * print_all_races
+# * create_cycles
 
-# possibilities I need to deal with for each election
-# None and None
-# Cand & None
-# None & Cand
-# Cand & Cand
-# - one has 0 votes
-# - both have 0 votes
-# -
-
-#############################################
-# Create both candidates
-# - assign winner/loser flag
-# - assign votes
-                                      
 class Cycle:
     """ store all elections in a given cycle
+    # Reviewed 12.01.17
     """
     def __init__(self,min_year,max_year,chamber):
         """ typically xxx2, xxx4, ..., xxx0
         stores all the elections in a given cycle along with model for imputing values
         """
-        self.min_year = min_year
-        self.max_year = max_year
-        self.years = []
-        self.states = []
-        self.chamber = chamber
-        self.elecs = dict()
-        self.leveliii_fit = None
-        self.leveliii_data = None
-        self.state_lookup = None
-        self.year_lookup = None
-        self.dist_lookup = None
-        self.alldist_lookup = None # districts that haven't been contested at all (hence not in dist_lookup)
+        self.min_year = min_year     # earliest allowed year of cycle (inclusive)
+        self.max_year = max_year     # latest allowed year of cycle (inclusive)
+        self.chamber = chamber       # chamber considered
+        self.years = []              # TODO: ?
+        self.states = []             # TODO: ?
+        self.elecs = dict()          # TODO: ?
+        self.leveliii_fit = None     # What is actually returned by pystan
+        self.leveliii_data = None    # the data needed to fit the model
+        self.state_lookup = None     # keeps track of which state a given race is in
+        self.year_lookup = None      # keeps track of which year a given race is in
+        self.dist_lookup = None      # keeps track of which district a given race is in
+        self.alldist_lookup = None   # districts that haven't been contested at all (hence not in dist_lookup)
 
         self.dwin = [0,0] # mean and std of consistent dem wins in the cycle (for predicting for new districts)
         self.rwin = [0,0] # mean and std of consistent rep wins in the cycle (for predicting for new districts)
         
     def get_model_input_data(self):
+        """ Return election data as a collection of independent arrays
+
+        # Reviewed 12.01.17
         """
-        """
-        ild = [] # incumbent list democrats
-        ilr = [] # incumbent list republicans
-        pv = []
-        sts = []
-        dists = []
-        yrs = []
-        wind = []
-        winr = []
-        # print "duh: ",len(curelections.keys())
+        # Run through the elections and then through the districts,
+        # appending relevant info to corresponding array
+        ild = []   # 1 if Dem incumbent, 0 if not
+        ilr = []   # 1 if Rep incumbent, 0 if not
+        pv = []    # Dem fraction of vote in the district
+        sts = []   # cycle state
+        dists = [] # what district race is in
+        yrs = []   # year of race
+        wind = []  # 1 if Dem winner, 0 if Rep winner
+        winr = []  # 1 if Rep winner, 0 if Dem winner
         for elec in self.elecs.values():
-            # print elec.Ndists,elec.yr
-            # if elec.cyc_state == 'LA1':
-            #     print elec.yr,elec.cyc_state
             for i in range(elec.Ndists):
+                # since this is data we'll be using to impute votes, don't include race if data already imputed.
                 if elec.status[i] == 2:
-                    # actual_votes,dv,rv = elec.compute_district_vote(i)
-                    # if actual_votes:
-                    # print actual_votes,dv,rv
                     if elec.dcands[i].winner:
                         wind.append(1)
                     else:
@@ -83,18 +97,15 @@ class Cycle:
                     else:
                         ilr.append(0)
                     dists.append(elec.dists[i])
-                    # pv.append(dv*1.0/(dv+rv))
                     pv.append(elec.demfrac[i])
-                    # REAPP
-                    # if elec.cyc_state == 'LA1':
-                    #     print "Adding to sts"
                     sts.append(elec.cyc_state)
                     yrs.append(elec.yr)
-        # print len(il),len(pv),len(sts)
         return wind,winr,ild,ilr,pv,sts,dists,yrs
 
     def fit_model(self):
-        """
+        """ run the hierarchical model to impute votes
+
+        # Reviewed 12.01.17
         """
         winD_Ni,winR_Ni,incumbentsD_Ni,incumbentsR_Ni,demvote_Ni,states_Ni,districts_Ni,years_Ni = self.get_model_input_data()
         
@@ -103,21 +114,21 @@ class Cycle:
         # put them into a dictionary so can assign a number to each
         state_lookup = dict(zip(setstates, range(len(setstates))))
         # replace list of states with indices of them
-        statenums = map(lambda x: state_lookup[x]+1, states_Ni) # srrs_mn.county.replace(county_lookup).values
+        statenums = map(lambda x: state_lookup[x]+1, states_Ni) 
         
         # get list of all years seen
         setyears = sorted(list(set(years_Ni)))
         # put them into a dictionary so can assign a number to each
         year_lookup = dict(zip(setyears, range(len(setyears))))
         # replace list of yearss with indices of them
-        yearnums = map(lambda x: year_lookup[x]+1, years_Ni) # srrs_mn.county.replace(county_lookup).values
+        yearnums = map(lambda x: year_lookup[x]+1, years_Ni) 
         
         # get list of all districts seen
         setdists = sorted(list(set(districts_Ni)))
         # put them into a dictionary so can assign a number to each
         dist_lookup = dict(zip(setdists, range(len(setdists))))
         # replace list of districts with indices of them
-        distnums = map(lambda x: dist_lookup[x]+1, districts_Ni) # srrs_mn.county.replace(county_lookup).values
+        distnums = map(lambda x: dist_lookup[x]+1, districts_Ni) 
         # print "distnums: ",distnums
         
         # need a lookup that tells us which state number corresponds to a given district number
@@ -147,19 +158,27 @@ class Cycle:
         self.year_lookup = year_lookup
         self.dist_lookup = dist_lookup
            
+        # if only a few years, will take more to converge
         if int(self.max_year)-int(self.min_year) <= 4:
             niter = 4000
             nchains = 4
         else:
             niter = 2000
             nchains = 2
+
+        # do the actual model fit
         self.leveliii_fit = pystan.stan(model_code=leveliii_model, data=leveliii_data, 
                                                  iter=niter, chains=nchains)
    
     def populate_elections(self,elections,loc_mmd):
         """ copy elections into the cycle
+
+        # Reviewed 11.15.17
         """
         for x in elections.keys():
+            # make sure year of election is in correct range
+            # skip if chamber is wrong
+            # skip if election has MMDs
             if int(self.min_year) <= int(elections[x].yr) <= int(self.max_year) and \
                 elections[x].chamber == self.chamber and \
                 (elections[x].chamber != '9' or elections[x].yr not in loc_mmd.keys() or \
@@ -175,6 +194,8 @@ class Cycle:
         """ get mean and std dev among districts won by single party every year in cycle
             use these for guessing districts consistently unopposed in cycle
             this is run after model has been fitted, but before imputed votes have been inserted
+
+        Reviewed 12.01.17
         """
         # get a lookup table for *all* districts
         alldists = []
@@ -205,9 +226,6 @@ class Cycle:
                     allDem[self.alldist_lookup[elec.dists[i]]] = False
 
         # return lists of indices in alldist_lookup that have what we want
-        # allDem_idx = filter(lambda x: allDem[i] == True, range(len(allDem)))
-        # allRep_idx = filter(lambda x: allRep[i] == True, range(len(allRep)))
-        # wasComp_idx = filter(lambda x: wasComp[i] == True, range(len(wasComp)))
         allDem_fil = []
         allRep_fil = []
         wasComp_fil = []
@@ -219,33 +237,22 @@ class Cycle:
             if wasComp[i] == True:
                 wasComp_fil.append(setalldists[i])
 
-        # allDem_fil = map(lambda y: filter(lambda i: allDem[i] == True, range(len(allDem)))
-        # allRep_fil = filter(lambda i: allRep[i] == True, range(len(allRep)))
-        # wasComp_fil = filter(lambda i: wasComp[i] == True, range(len(wasComp)))
         if len(wasComp_fil) != len(self.dist_lookup):
             print "WARNING: competed districts don't match in length"
             return
-        # return allDem_idx,allRep_idx,wasComp_idx
         return allDem_fil,allRep_fil,wasComp_fil
 
+    # TODO: Not exactly sure what this is saying
     # need to make sure that all districts in cycle are addressed in the same order
     # that's what's dist_lookup is for
 
     def impute_votes(self,verbose=False):
         """ run through all races in cycle and impute those that need it
+
+        # Reviewed 12.01.17
         """
         predd = self.leveliii_fit.extract()
         allDem_fil,allRep_fil,wasComp_fil = self.get_new_dist_data() # so we know what to do about districts not in model
-
-        print "allDem_fil:"
-        for x in allDem_fil:
-            print x
-        print "allRep_fil:"
-        for x in allRep_fil:
-            print x
-        print "wasComp_fil:"
-        for x in wasComp_fil:
-            print x
 
         # set up parameters for when we don't have a race in the district during the cycle
         curDdata = []
@@ -258,21 +265,18 @@ class Cycle:
             if curdist in wasComp_fil: # need it to have been competed for
                 # pull out that column from model fit
                 curRdata.append(mean(predd['u_0jk'][:,self.dist_lookup[curdist]]))
-        # print "curDdata: ",curDdata
-        # print "curRdata: ",curRdata
         make_histogram('Demhisto.png',curDdata)
         make_histogram('Rephisto.png',curRdata)
 
         self.dwin = [np.mean(curDdata),np.std(curDdata)]
         self.rwin = [np.mean(curRdata),np.std(curRdata)]
-        print "dwin: %s rwin: %s\n" % (self.dwin,self.rwin)
 
-        print self.state_lookup
+        if verbose:
+            print "dwin: %s rwin: %s\n" % (self.dwin,self.rwin)
+            print self.state_lookup
 
         for elec in self.elecs.values():
             for i in range(elec.Ndists):
-#                actual_votes,dv,rv = elec.compute_district_vote(i)
-#                if not actual_votes:
                 if elec.status[i] == -1: # shouldn't be at this stage
                     print "WARNING: status not set",elec.yr,elec.cyc_state,elec.chamber,i
                     return
@@ -289,12 +293,6 @@ class Cycle:
                         print "WARNING: Rare! never contested, but flipped between parties"
                         u0jk = mean(predd['u_0jk'][:,1+randrange(len(predd['u_0jk'][0])-1)])
                         
-                    # rr = randrange(len(predd['beta_0']))
-                    # print rr
-                    # if elec.dists[i] not in self.dist_lookup.keys():
-                    #     u0jk = mean(predd['u_0jk'][:,1+randrange(len(predd['u_0jk'][0])-1)])
-                    # else:
-                    #     u0jk = mean(predd['u_0jk'][:,self.dist_lookup[elec.dists[i]]])
                     winD = mean(predd['win_D'])
                     winR = mean(predd['win_R'])
                     deltaD = mean(predd['delta_D'])
@@ -326,7 +324,8 @@ class Cycle:
 
                     newdv = beta0 + u0k + u0jk + v0l + incummod + winnermod
                     elec.impute_data[i] = [beta0,u0k,u0jk,v0l,incummod,winnermod]
-                    # TODO: How to deal with imputed value contradicting model?
+
+                    # How to deal with imputed value contradicting model
                     if elec.dcands[i].winner and newdv < 0.5:
                         print "WARNING: Imputed winner but value too small: ",
                         print elec.yr,elec.cyc_state,elec.chamber,elec.dists[i],str(elec.dcands[i]),newdv
@@ -336,12 +335,10 @@ class Cycle:
                         print elec.yr,elec.cyc_state,elec.chamber,elec.dists[i],str(elec.dcands[i]),newdv
                         newdv = 0.49
                     if verbose:
-                        print "Imputing %s %s %s %s beta: %.2f st: % .2f dist: % .2f yr: % .2f Incum: % .2f winner: % .2f demv: %.4f" % \
-                            (elec.yr,elec.cyc_state,elec.chamber,elec.dists[i],beta0,u0k,u0jk,v0l,incummod,winnermod,newdv)
-                        # if elec.dcands[i] == None:
-                        # elec.dcands[i] = Candy('_'.join([elec.yr,elec.state,elec.chamber]),'','Dem',0,False,False)
-                        # if elec.rcands[i] == None:
-                        # elec.rcands[i] = Candy('_'.join([elec.yr,elec.state,elec.chamber]),'','Rep',0,False,False)
+                        print "Imputing %s %s %s %s beta: %.2f st: % .2f dist: % .2f \
+                              yr: % .2f Incum: % .2f winner: % .2f demv: %.4f" % \
+                            (elec.yr,elec.cyc_state,elec.chamber,elec.dists[i],beta0,u0k,u0jk,\
+                             v0l,incummod,winnermod,newdv)
                     elec.status[i] = 1 # imputed successfully
                     elec.demfrac[i] = newdv
                     elec.dcands[i].votes = int(1000*newdv)
@@ -399,15 +396,12 @@ class Gerry:
         self.impute_data = []                  # for storing info from multilinear model
         self.unopposed = 0                     # fraction of races that are unopposed
         self.egap = float('NaN')               # efficiency gap
-        self.fgap = float('NaN')               # fgap
         self.numpow = [-2,-1,-0.5,0,0.50,1,2]       # powers to use for "wasted" votes; negative get interpreted as on 01.23.17
         self.gaps = [float('NaN') for j in range(len(self.numpow))]
         self.adjgaps = [float('NaN') for j in range(len(self.numpow))]
         self.adj = [0 for j in range(len(self.numpow))] # how to adjust for bias from overall vote percentage
         self.l_regress = [float('NaN'),float('NaN')] # intercept for regression line for losing races
         self.w_regress = [float('NaN'),float('NaN')] # intercept for regression line for losing races
-        self.Dfrac = 0                         # overall democratic vote
-        self.valid = True                      # not sure how to be used...
 
     def mycopy(self):
         """
@@ -429,7 +423,6 @@ class Gerry:
                 g.rcands.append(None)
         g.unopposed = self.unopposed
         g.egap = self.egap
-        g.fgap = self.fgap
         g.status = [self.status[j] for j in range(len(self.status))]
         g.impute_data = [self.impute_data[j] for j in range(len(self.status))]
         g.demfrac = [self.demfrac[j] for j in range(len(self.demfrac))]
@@ -440,7 +433,6 @@ class Gerry:
         g.adj = [self.adj[j] for j in range(len(self.adj))]
         g.l_regress = [self.l_regress[j] for j in range(len(self.l_regress))]
         g.w_regress = [self.w_regress[j] for j in range(len(self.w_regress))]
-        g.Dfrac = self.Dfrac
         return g
             
     def myprint(self):
@@ -458,12 +450,14 @@ class Gerry:
             else:
                 rstr = 'None'
             print "   %s: %s vs. %s %s " % (self.dists[i],dstr,rstr,self.status[i])
-        print "fgap: %.4f egap: %.4f" % (self.fgap,self.egap)
+        print "egap: %.4f" % (self.egap)
 
     def regularize_races(self):
         """ add stub candidates if necessary; flag if need to impute votes
             make sure winners votes are greater than loser's (even if needs to be imputed eventually)
             store demfrac in appropriate place
+
+        # Raeviewed 11.15.17
         """          
         for i in range(self.Ndists):
             dc = self.dcands[i]
@@ -488,7 +482,6 @@ class Gerry:
                     return # GSW: Remove? Shouldn't happen
                 elif dc.winner:
                     self.status[i] = 0 # needs to be imputed
-                    # self.dcands[i] = Candy(self.rcands[i].race,'','Dem',0,False,False) # votes, incum, winner
                 else:
                     self.status[i] = 0 # needs to be imputed
             elif dc.votes == 0 or rc.votes == 0: # not going to happen in a real race
@@ -497,121 +490,12 @@ class Gerry:
                 self.demfrac[i] = dc.votes*1.0/(dc.votes+rc.votes)
                 self.status[i] = 2 # okay from start
             
-    def compute_district_vote(self, i, default_win=15000, default_lose=6000):
-        """ put all case here; first return is whether actual values or estimates; i is district number
-        """          
-        dc = self.dcands[i]
-        rc = self.rcands[i]
-        if dc is None and rc is None:
-            print "weird, this district doesn't exist",i
-            return False,0,0
-        if rc is None: # unopposed democrat
-            return False,default_win,default_lose
-        elif dc is None: # unopposed republican
-            return False,default_lose,default_win
-        elif dc.votes == 0 and rc.votes == 0: # two candidates, but neither has votes listed; shouldn't happen
-            if (dc.winner and rc.winner) or (not dc.winner and not rc.winner):
-                print "both/no winners", self.yr,self.cyc_state,self.chamber,self.dists[i], str(dc), str(rc)
-                return False,0,0
-            elif dc.winner:
-                return False,default_win,default_lose
-            else:
-                return False,default_lose,default_win
-        return True,dc.votes,rc.votes
-
-    def compute_gaps(self,default_win=15000, default_lose=6000, alpha = 2):
-        """ compute e-gap and f-gap
-        """
-        numarr = [0 for j in range(len(self.numpow))]
-        totvotes = 0
-        self.Ddists = 0
-        # compute efficiency gap
-        for i in range(self.Ndists):
-            actual_votes,dv,rv = self.compute_district_vote(i)
-            if actual_votes:
-                self.dcands[i].frac = 1.0*dv/(dv+rv)
-                self.rcands[i].frac = 1.0*rv/(dv+rv)
-            # else:
-            #     print "this should not happen...",self.yr,self.state,i,str(self.dcands[i]),str(self.rcands[i])
-            if dv >= rv:
-                self.Ddists += 1        
-            totvotes = dv + rv
-
-            if totvotes > 0:
-                ai = (2.0*(dv*1.0-totvotes*1.0/2))/totvotes
-                # print i,ai,totvotes
-                for j in range(len(self.numpow)):
-                    if self.numpow[j] >= 0: # votes close to 50% are weighed more ("traditional")
-                        if ai >= 0:  
-                            numarr[j] += pow(ai,self.numpow[j]+1)
-                            # print "a",j,numarr[j]
-                        else:
-                            numarr[j] -= pow(-ai,self.numpow[j]+1)
-                            # print "b",j,numarr[j]
-                    else:             # votes close to 50% are weighed less 
-                        if ai >= 0:
-                            numarr[j] -= pow((1-ai),-self.numpow[j]+1)
-                            # print "c",j,numarr[j]
-                        else:
-                            numarr[j] += pow((1+ai),-self.numpow[j]+1)
-                            # print "d",j,numarr[j]
-                    
-        for j in range(len(self.numpow)):
-            if self.numpow[j] >= 0:
-                self.gaps[j] = (2.0/(self.numpow[j]+2))*(numarr[j]/self.Ndists + 0.5 - self.Ddists*1.0/self.Ndists)
-            else:
-                self.gaps[j] = (2.0/(-self.numpow[j]+2))*(numarr[j]/self.Ndists - 0.5 + self.Ddists*1.0/self.Ndists)
-        # don't do here since we don't know biases yet
-        # self.egap = self.gaps[self.numpow.index(0)]
-        # self.fgap = self.gaps[self.numpow.index(2)] # - (self.Dfrac-0.5)/2
-
-    def compute_overall(self):
-        """ estimate democrats overall estimate of vote
-        """ 
-        doverall = 0
-        roverall = 0
-        for i in range(self.Ndists):
-            actual_votes,dv,rv = self.compute_district_vote(i)
-            doverall += dv
-            roverall += rv 
-        if (doverall + roverall) > 0:
-            self.Dfrac = 1.0*doverall/(doverall + roverall)
-        else:
-            self.valid = False
-
-def compute_adj(cycles):
-    """ compute the adjustments due to bias for different weight functions
-    """
-    # restrict to cycles since others may not have had votes imputed
-    adjlist = [[] for j in range(100)] # just pick something big for now
-    numgaps = 0
-    for c in cycles:
-        for k in c.elecs.keys():
-            if c.elecs[k].Ndists >= 1:
-                numgaps = len(c.elecs[k].numpow)
-                for j in range(numgaps):
-                    adjlist[j].append([c.elecs[k].Dfrac,c.elecs[k].gaps[j]])
-
-    # now compute slope of regressions
-    ans = []
-    for j in range(numgaps):
-        slope, intercept, r_value, p_value, std_err = stats.linregress([x[0] for x in adjlist[j]], [x[1] for x in adjlist[j]])
-        ans.append(slope)
-        print "j: ",slope
-
-    # now fill in
-    for elec in elections.values():
-        elec.adj = [x for x in ans]
-        for j in range(len(elec.numpow)):
-            elec.adjgaps[j] = elec.gaps[j] - elec.adj[j]*(elec.Dfrac-0.5)
-        idx = elec.numpow.index(0)
-        elec.egap = elec.gaps[idx] - elec.adj[idx]*(elec.Dfrac-0.5)
-        idx = elec.numpow.index(-2)
-        elec.fgap = elec.gaps[idx] - elec.adj[idx]*(elec.Dfrac-0.5)
-
 ###############################################################################################################
 def get_cyc_state(yrint,state,chamber):
     """ Get alternative name for state to keep track of mid-decade redistricting
+
+    # Raeviewed 11.15.17
+    TODO: Write auxiliary function and compress the code so it's easier to read
     """
     if chamber == '11':
         ############## Congress 00s                                                         
@@ -771,11 +655,24 @@ def get_cyc_state(yrint,state,chamber):
           else:                                                                           
               return 'CA2'
 
+    # one plan for entire decade, so do not make any changes.
     return state
            
 ###############################################################################################################
 def make_records(arr,elections=None,verbose=False):
     """ make a record for each year-state-chamber
+
+    # Reviewed 11.15.17
+    This takes raw data from files that is listed in arrays and populates various classes.
+
+    Format of arr is something like the following:
+      myid = '1974_AL_9' - year,state and legislative body
+      newdistid = '61.' - district identifier - TODO: describe precisely
+      votes = candidate's vote totals. 0 if entry in file is empty
+      party = 'Dem' or 'Rep'
+      incumbent = True or False
+      winner = True or False
+      pvote = presidential vote as a percentage or '' if unknown
     """
     clobber = False
     if elections == None:
@@ -786,23 +683,26 @@ def make_records(arr,elections=None,verbose=False):
         for x in arr:
             # so we can completely rewrite data if we're worried about it being in there
             if x[0] in elections.keys():
-                print "Clobbering",x[0]
+                # print "Clobbering",x[0]
                 del elections[x[0]]
 
     for x in arr:
         if x[0] not in elections.keys(): 
             yr,state,chamber = x[0].split('_')
             elections[x[0]] = Gerry(yr,state,chamber)
-            # REAPP
+
+            # TODO: Make REAPP tags understandable (or remove)
+            # REAPP - references code that was added to deal with mid-decade reapportionment
+            # cyc_state is finer than state since it takes into account which plan during the decade
             elections[x[0]].cyc_state = get_cyc_state(int(yr),state,chamber)
             if verbose:
                 print "Adding new race: %s" % (x[0])
         elec = elections[x[0]]
         # REAPP
+        # See if we've already added a candidate for this race. Get index if so, otherwise add at end
         if (elec.cyc_state + x[1]) in elec.dists:
             # REAPP
             i = elec.dists.index(elec.cyc_state + x[1])
-            # print "looking for %s found at posn %d" % (x[1],i)
         else:
             i = elec.Ndists
             # REAPP
@@ -816,14 +716,14 @@ def make_records(arr,elections=None,verbose=False):
             # this won't work for data in which we get candidates separately, but
             # that's not the case for the congressional data, which is the only stuff
             # we have presidential vote for at the moment
+            # TODO: Not sure exactly what this comment means, all races have been split into
+            # two lines in arr....
             elec.pvote.append(x[-1])
             elec.Ndists += 1
-            # print "adding at end %s at posn %d" % (x[1],i)
-
 
         if x[3] == 'Dem':
             elec.dcands[i] = Candy(x[0],'NoName','Dem',x[2],x[4],x[5]) # race,name,party,votes,incum,winner
-        else:
+        if x[3] == 'Rep':
             elec.rcands[i] = Candy(x[0],'NoName','Rep',x[2],x[4],x[5]) # race,name,party,votes,incum,winner
             
     for elec in elections.values():
@@ -834,7 +734,9 @@ def make_records(arr,elections=None,verbose=False):
     return elections
 
 def print_race(elections,yr,state,chamber):
-    """
+    """ Print a single race if it ex
+    # reviewed 11.30.17
+    # TODO: should probably be called "print_election"
     """
     race = '_'.join([yr,state,chamber])
     if race not in elections.keys():
@@ -843,7 +745,9 @@ def print_race(elections,yr,state,chamber):
     elections[race].myprint()
     
 def print_all_races(elections,verbose=True):
-    """
+    """ Print all of the races
+    # reviewed 11.30.17
+    # TODO: should probably be called "print_election"
     """
     yrs = []
     states = []
@@ -866,7 +770,10 @@ def print_all_races(elections,verbose=True):
                     print_race(elections,yr,state,chamber)
 
 def create_cycles(elections,mmd,prior_all,recent_cong,recent_state):
-    """
+    """ group together all elections within a given decade.
+
+    Uses cycstate to effectively treat different plans within the same state as completely distinct.
+    # Reviewed 12.01.17
     """
     cycles = []
     # state and congress

@@ -1,19 +1,58 @@
-# 1 - functions for reading data
+# Functions for reading data
 
 def read_tsv_2010(fn):
-    """
+    """ State races through 2010 from Harvard Dataverse ICPSR 34297.
+
+    # Reviewed 11.15.17
+    Extracts desired info from state legislative races.
+    Note that in this file, only one candidate per line.
+
+    Returns a 4-tuple:
+    ans = [
+      myid = '1974_AL_9' - year,state and legislative body
+      newdistid = '61.' - district identifier - TODO: describe precisely
+      votes = candidate's vote totals. 0 if entry in file is empty
+      party = 'Dem' or 'Rep'
+      incumbent = True or False
+      winner = True or False
+      '' = This file does not record presidential data. TODO: Check
+    ]
+    yrs = list of years in file (as strings)
+    states = list of states in file (two-letter abbreviations)
+    mmd = list of [year,state] pairs for which not all districts are single member
+    
     07.27.17 - added empty string at end since don't know presidential data (yet?)
+
+    TODO: Should these be treated differently? Currently dropped from analysis.
+    So number of seats will be wrong for these states and years.
+    Elections with no major-party candidate:
+    2008 AR 39th district - Richard Carroll - Green party (switched to Dem in 2009)
+    '1972_CA_914.'
+    '1976_CA_911.' 
+    '1976_CA_953.' 
+    '1976_CA_967.'
+    '1980_CA_929.' 
+    '1982_CA_934.'
     """
-    f = open('/home/gswarrin/research/gerrymander/data/' + fn,'r')
-    cnt = 0
-    scnt = 0
-    ans = []
-    yrs = []
-    mmd = [] # for keeping track of who has multi-member districts
-    states = []
-    myids = []
+    f = open(homepath + 'data/' + fn,'r')
+
+    cnt = 0  # line of file
+
+    # list of districts with a candidate who is not a Dem or a Rep
+    nonDRdists = []
+    # list of districts with a candidate who is a Dem or a Rep
+    DRdists = []
+    # we'll compare these lists to see how many districts don't have either running
+
+    # initializing items we'll be returning
+    ans = []    # tuples 
+    yrs = []    # years
+    states = [] # states
+    mmd = []    # for keeping track of who has multi-member districts
+
     for line in f:
         cnt += 1
+        # get the headers of the columns
         if cnt == 1:
             hdrs = line.strip().split('\t')
             continue
@@ -22,11 +61,17 @@ def read_tsv_2010(fn):
         ############################################################
         # restriction attention to certain lines
         ############################################################
-        # TODO: skip senate? (what about nebraska?) - only work with lower house as that's what S-M do
+        if int(l[hdrs.index('v05')]) < 1972:
+            continue
+
+        # '9' codes for the lower house in each state
+        # TODO: Clarify what happens in Nebraska
         if l[hdrs.index('v07')] != '9':
             continue
         # v12 - district type (want SMD only, which is coded by a 1)
         if l[hdrs.index('v12')] != '1':
+            # v05 = year
+            # v02 = state
             tmp = [l[hdrs.index('v05')],l[hdrs.index('v02')]]
             if tmp not in mmd:
                 mmd.append(tmp)
@@ -35,9 +80,22 @@ def read_tsv_2010(fn):
         if l[hdrs.index('v16')] != 'G':
             continue
         # v21 - 100 = Democrat, 200 = Republican, see Study #8907 for detailed listing
+        # 300 = Fused Dem/Rep
+        # 400 = non-major party
+        # 500 = non-partisan election
+        # 600 = write-in/scattering
+        # 700 = unidentified
         if l[hdrs.index('v21')] not in ['100','200']:
+            # print "Candidate not Dem or a Rep: ",l[hdrs.index('v05')],l[hdrs.index('v02')],\
+            #     l[hdrs.index('v11')],l[hdrs.index('v21')]
+            tmpid = '_'.join([l[hdrs.index('v05')],l[hdrs.index('v02')], l[hdrs.index('v07')]]) + \
+                    l[hdrs.index('v11')]
+            if tmpid not in nonDRdists:
+                nonDRdists.append(tmpid)
             continue
-        # The 2012 data doesn't contain all columns
+
+        # The 2012 data doesn't contain all columns. Not relevant for <= 2010 currently used.
+        # Ignore races in which more than one Democrat or one Republican running.
         # v26 - number of democrats running
         # v27 - number of republicans running
         # v13 - number of winners
@@ -49,22 +107,19 @@ def read_tsv_2010(fn):
         ############################################################
         # create a new field that identifies each race we care about
         ############################################################
+        # keep track of years and states represented in the data
         if l[hdrs.index('v05')] not in yrs:
             yrs.append(l[hdrs.index('v05')])
         if l[hdrs.index('v02')] not in states:
             states.append(l[hdrs.index('v02')])
             
-        myid = '_'.join([l[hdrs.index('v05')],l[hdrs.index('v02')], \
-                l[hdrs.index('v07')]])
-        if myid not in myids:
-            myids.append(myid)
+        myid = '_'.join([l[hdrs.index('v05')],l[hdrs.index('v02')], l[hdrs.index('v07')]])
         if l[hdrs.index('v23')] == ' ' or l[hdrs.index('v23')] == '': # candidates vote total
             l[hdrs.index('v23')] = 0
         if l[hdrs.index('v21')] == '100':
             party = 'Dem'
         else:
             party = 'Rep'
-        # print ".%s." % (l[hdrs.index('v13')])
         # v11 - district identifier
         # v23 - candidate's vote total
         # v29 - total votes cast in election (all candidates)
@@ -79,135 +134,66 @@ def read_tsv_2010(fn):
         else:
             winner = False
             
-        # incum = l[hdrs.index('v22')] # information on whether an incumbent
+        # create a district id if don't have one in the file
         if 'v11' in hdrs:
             newdistid = l[hdrs.index('v11')]
         else:
             newdistid = l[hdrs.index('v08')]+l[hdrs.index('v09')]+l[hdrs.index('v10a')]+\
                         l[hdrs.index('v10b')]+l[hdrs.index('v10c')]
-        # str = [l[hdrs.index('caseid')],myid,newdistid,\
-        #         int(l[hdrs.index('v23')]),l[hdrs.index('v21')],incum,winner]
-        str = [myid,newdistid,\
-                int(l[hdrs.index('v23')]),party,incum,winner,'']
+
+        DRdists.append('_'.join([l[hdrs.index('v05')],l[hdrs.index('v02')], l[hdrs.index('v07')]])\
+                       + l[hdrs.index('v11')])
+        str = [myid,newdistid,int(l[hdrs.index('v23')]),party,incum,winner,'']
         ans.append(str)      
-        scnt += 1
-        # print str
+    # keep track of which races aren't kept because no major-party candidate
+    # first filter out those that will be ignored due to MMD issues
+    nonMMDnonDR = filter(lambda x: [x[:4],x[5:7]] not in mmd, nonDRdists)
+    # These are races we are completely omitting.
+    # TODO: Decide if we want to include as unknown winner for imputation purposes.
+    for x in filter(lambda x: x not in DRdists, nonMMDnonDR):
+        print "No major-party candidates, not MMD - skipping race: ",x
     return ans,yrs,states,mmd
 
-def read_fec_csv():
-    """
-    """
-    statecodemap = [[1,'CT'],[2,'ME'],[3,'MA'],[4,'NH'],[5,'RI'],[6,'VT'],[11,'DE'],[12,'NJ'],[13,'NY'],[14,'PA'],\
-    [21,'IL'],[22,'IN'],[23,'MI'],[24,'OH'],[25,'WI'],[31,'IA'],[32,'KS'],[33,'MN'],[34,'MO'],[35,'NE'],[36,'ND'],\
-    [37,'SD'],[41,'AL'],[42,'AR'],[43,'FL'],[44,'GA'],[45,'LA'],[46,'MS'],[47,'NC'],[48,'SC'],[49,'TX'],[40,'VA'],\
-    [51,'KY'],[52,'MD'],[53,'OK'],[54,'TN'],[55,'DC'],[56,'WV'],[61,'AZ'],[62,'CO'],[63,'ID'],[64,'MT'],[65,'NV'],\
-    [66,'NM'],[67,'UT'],[68,'WY'],[71,'CA'],[72,'OR'],[73,'WA'],[81,'AK'],[82,'HI']]
-    
-    stateabbrev = [x[1] for x in statecodemap]
-      
-    fecyrs = [2000,2002,2004,2006,2008,2010,2012,2014]
-    
-    HdrSt = ['STATE','STATE','STATE ABBREVIATION','STATE ABBREVIATION','STATE ABBREVIATION','STATE ABBREVIATION','STATE ABBREVIATION','STATE ABBREVIATION']
-    HdrDist = ['DISTRICT','DISTRICT','DISTRICT','DISTRICT','DISTRICT','DISTRICT','D','D']
-    HdrParty = ['PARTY','PARTY','PARTY','PARTY','PARTY','PARTY','PARTY','PARTY']
-    HdrVotes = ['GENERAL RESULTS','GENERAL RESULTS','GENERAL','GENERAL','GENERAL ','GENERAL ','GENERAL VOTES ','GENERAL VOTES ']
-    HdrIncum = ['INCUMBENT INDICATOR','INCUMBENT INDICATOR','INCUMBENT INDICATOR','INCUMBENT INDICATOR','INCUMBENT INDICATOR (I)', 'INCUMBENT INDICATOR (I)','(I)','(I)']
-    
-    PartyVals = [['R','D'],['R','D'],['R','D'],['REP','DEM'],['R','D'],['REP','DEM'],['R','D'],['R','D']]
-     
-    fecfiles = ['2000congresults.csv','2002congresults.csv','2004congresults.csv','2006congresults.csv',\
-        '2008congresults.csv','2010congresults.csv','2012congresults.csv','2014congresults.csv'] 
-      
-    d = dict()
-    for i in range(len(fecfiles)):
-        fn = fecfiles[i]
-        yr = fecyrs[i]
-        f = open('/home/gswarrin/research/gerrymander/data/' + fn,'r')
-        # print "starting year: ",yr
-        cnt = 0
-        for line in f:
-            l = line.split('\t')
-            if cnt == 0:
-                hdrs = [x for x in l]
-                cnt += 1
-                # print hdrs
-                continue
-            if len(l) <= hdrs.index(HdrVotes[i]):
-                continue
-            state = l[hdrs.index(HdrSt[i])]
-            if state in ['CT','NY'] or state not in stateabbrev: # dealing with combined parties is a pain
-                continue
-            # print "                    ",state
-            dist = l[hdrs.index(HdrDist[i])]
-            voteval = l[hdrs.index(HdrVotes[i])].replace(',', '')
-            if voteval == '' or voteval == ' ' or voteval == 'n/a' or voteval == '#':
-                continue
-            if voteval[0] == '[':
-                voteval = voteval[1:-1]
-            if voteval[0] in ['U','W']: # for unopposed/withdrew, some have spaces at end...
-                votes = 1000
-            else:
-                votes = int(voteval)
-            party = l[hdrs.index(HdrParty[i])].rstrip()
-            if l[hdrs.index(HdrIncum[i])] == '(I)':
-                incum = True
-            else:
-                if len(l[hdrs.index(HdrIncum[i])]) > 1:
-                    print "incum: ",l[hdrs.index(HdrIncum[i])]
-                incum = False
-            key = '_'.join([repr(yr),state,'11',dist])
-            cnt += 1
-            if votes > 0 and dist.isdigit() and party in PartyVals[i]:
-                if key in d.keys():
-                    if party == PartyVals[i][1]:
-                        d[key][0] += votes
-                    else:
-                        d[key][1] += votes
-                else:
-                    if party == PartyVals[i][1]:
-                        d[key] = [votes,0]
-                    else:
-                        d[key] = [0,votes]
-        f.close()
-        # print "Done with year: ",yr,cnt
-    ncnt = 0
-    ans = []
-    # incum = 0 # information on whether an incumbent
-    # do this extra step since otherwise I don't know who won or not.
-    # seems like I could do this later when things get pushed into records, though.
-    for k in d.keys():
-        tyr,tstate,tchamber,tdist = k.split('_')
-        if d[k][0] > d[k][1]:
-            dwinner = True
-            rwinner = False
-        else:
-            dwinner = False
-            rwinner = True
-        # tmpd = ['fec' + repr(ncnt),'_'.join([tyr,tstate,tchamber]),tdist,d[k][0],'100',incum,dwinner]
-        # tmpr = ['fec' + repr(ncnt),'_'.join([tyr,tstate,tchamber]),tdist,d[k][1],'200',incum,rwinner]
-        tmpd = ['_'.join([tyr,tstate,tchamber]),tdist,d[k][0],'Dem',incum,dwinner]
-        tmpr = ['_'.join([tyr,tstate,tchamber]),tdist,d[k][1],'Rep',incum,rwinner]
-        ans.append(tmpd)
-        ans.append(tmpr)
-    return ans,[repr(x) for x in fecyrs],stateabbrev # should already have all of these states
+##########################
+def read_jacobson_csv(fn,ignore_pre_1972=True):
+    """ Congressional races from 1946 - 2014. From Jacobson.
 
-def read_jacobson_csv():
-    """ for reading in congressional races; 
-        07.27.17 - added pres votes at end as either empty string or fraction of 1.
+    # Reviewed 11.15.17
+    07.27.17 - added pres votes at end as either empty string or fraction of 1.
+    Returns 3-tuple
+    ans = [
+
+    ]
+    yrs = list of years in data file
+    states = list of states in data file
+
+    Nothing is returned for MMDs since we're outlawed in 1967 
+      and we're restricting to elections since 1972.
+    In file, each election is encoded in a single line (unlike with 34297).
+    So output has to split into two lines.
+
+    Congressional races in which 3rd party won (so election ignored):
+    1972 MA 9th - Joe Moakley won (ended up caucusing with Dems FWIW)
+    1990-2004 VT 1st - Bernie Sanders won
+    2000 VA 5th - Virgil Goode won Independent
     """
+    # jacobson stores states as indices in this list (shifted down by one)
+    # TODO: rewrite to use global state indices
     statelist = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',\
        'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH',\
        'OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']    
       
-    f = open('/home/gswarrin/research/gerrymander/data/HR4614.csv','r')
-    cnt = 0
-    scnt = 0
-    ans = []
-    yrs = []
-    states = []
-    myids = []
+    f = open(homepath + 'data/' + fn,'r')
+
+    cnt = 0     # line in file
+    ans = []    # initialize list of tuples
+    yrs = []    # initialize year list we'll be returning
+    states = [] # initialize state list we'll be returning
+    myids = []  # ids i'm creating
+
     for line in f:
         cnt += 1
+        # read in headers
         if cnt == 1:
             hdrs = line.strip().split(',')
             continue
@@ -225,71 +211,91 @@ def read_jacobson_csv():
         # 9 1=District redrawn since last election; 0=not redrawn
         # 12 major party presidential vote
 
+        if ignore_pre_1972 and int(l[0]) < 1972:
+            continue
+
+        # read in year, state and district
         if l[0] not in yrs:
             yrs.append(l[0])
         stcode = int(l[1][:-2])
-        # print stcode
         distcode = l[1][-2:]
         state = statelist[stcode-1]
         if state not in states:
             states.append(state)
+
         uncontested = False    
-        myid = '_'.join([l[0],state,'11']) # '11' means US Congress
+        myid = '_'.join([l[0],state,'11']) # '11' means US Congress; 1972_AL_11
         if myid not in myids:
             myids.append(myid)
         if l[4] == ' ' or l[4] == '': # democratic candidate's vote total
             dvotes = 0
             uncontested = True
         else:
-            if '.' in l[4]:
+            if '.' in l[4]:           # vote expressed as a percentage -> convert to out of 1000
                 dvotes = int(float(l[4])*10)
             else:
                 dvotes = int(l[4])*10
-        if l[12] == ' ' or l[12] == '':
+        if l[12] == ' ' or l[12] == '':  # democratic presidential vote as percentage
             pvotes = ''
         else:
             pvotes = float(l[12])/100
 
-        if dvotes > 1000:
+        if dvotes > 1000:             # this shouldn't happen since starting with percentages
             print "reading jacobson %s %s %s - too many votes!" % (l[0],state,l[1])
-        repinc = (l[2] in ['0','5'])
+
+        # 5 = two incumbents from opposing parties
+        # 0,1 = Rep and Dem incumbents, respectively
+        # other cases treated as no incumbents. TODO: See how many of these there are.
+        repinc = (l[2] in ['0','5'])  
         deminc = (l[2] in ['1','5'])
-        dwinner = (l[3] == '1')
-        rwinner = (l[3] == '0')
-        if not dwinner and not rwinner: # third-party won - ignore it (completely? try to impute?)
-            print "Ignoring race completely",myid,state,l[1]
+        dwinner = (l[3] == '1')       # Dem winner
+        rwinner = (l[3] == '0')       # Rep winner
+        if not dwinner and not rwinner: # Third-party won. TODO: Count how many. Currently ignored completely.
+            print "No major party winner - skipping race",myid,l[1]
             continue
-        redrawn = (l[9] == '1')
+        redrawn = (l[9] == '1')       # whether district has been redrawn since previous election
+        # If contested, then will print two lines (one for Dem, one for Rep)
+        # If uncontested, then will only print a line for the winner (if no winner, see above).
         if not uncontested or dwinner:
             ans.append([myid,state+l[1],dvotes,'Dem',deminc,dwinner,pvotes])
         if not uncontested or rwinner:
             ans.append([myid,state+l[1],1000-dvotes,'Rep',repinc,rwinner,pvotes])
-        if uncontested:
-            print "Uncontested: ",myid,state+l[1],dvotes,dwinner,rwinner
+        # TODO: Flag some other way? There are a lot of these.
+        # if uncontested:
+        #     print "Uncontested: ",myid,state+l[1],dvotes,dwinner,rwinner
         if (int(l[0]) % 2) == 1:
             print "Odd year: ",myid,state+l[1],dvotes,dwinner,rwinner
-        # print(ans[-2])
-        # print(ans[-1])    
-        scnt += 1
     return ans,yrs,states # ,mmd
 
+####################################
 def read_2012_state_csv(fn,chamber):
-    """ for reading in state races I typed in from Ballotpedia
-    07.27.17 - added empty string at end since don't know presidential vote currently
-    """
-    stlist = ['00','AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY',
-              'LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH',
-              'OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'] 
+    """ For reading in state races I typed in from Ballotpedia
 
-    f = open(fn,'r')
+    # Reviewed 11.15.17
+    07.27.17 - added empty string at end since don't know presidential vote currently
+    In file, each race is one line. Races are output as two lines (if contested).
+
+    ans = [
+    - myid = '2014_NC_11'
+    - distcode = AL0102 or WI1
+    - votes obtained by candidate
+    - Party: 'Dem' or 'Rep'
+    - Whether candidate is incumbent
+    - Whether candidate is winner
+    - presidential vote (unknown)
+    ]
+    years = list of years seen
+    states = list of states seen
+    """
+    f = open(homepath + 'data/' + fn,'r')
     cnt = 0
-    scnt = 0
-    ans = []
-    yrs = []
-    states = []
-    myids = []
+    ans = []         # tuple we're returning
+    yrs = []         # years seen
+    states = []      # states seen
+    myids = []       # id's for each district
     for line in f:
         cnt += 1
+        # read in column headers
         if cnt == 1:
             hdrs = line.strip().split(',')
             continue
@@ -309,19 +315,22 @@ def read_2012_state_csv(fn,chamber):
         if l[0] not in yrs:
             yrs.append(l[0])
         state = l[1]
-        if chamber == '9':
-            distcode = state + l[2]
+        # TODO: Check if appropriate format.
+        # In particular, does it match <= 2010 format? Does it ever need to?
+        if chamber == '9':            # state legislature
+            distcode = state + l[2]   # eg, WI1
         else:
             tmp = stlist.index(state)
             if tmp < 10:
                 tmp = '0' + str(tmp)
             else:
                 tmp = str(tmp)
-            distcode = state + tmp + l[2]
+            distcode = state + tmp + l[2] # eg, AL0104
         if state not in states:
             states.append(state)
+
         uncontested = False    
-        myid = '_'.join([l[0],state,chamber]) # '9' means state legislature
+        myid = '_'.join([l[0],state,chamber]) 
         if myid not in myids:
             myids.append(myid)
         if l[3] == ' ' or l[3] == '': # democratic candidate's vote total
@@ -329,39 +338,37 @@ def read_2012_state_csv(fn,chamber):
             uncontested = True
         if l[3] == '0' or l[4] == '0':
             uncontested = True
-        deminc = (l[5] == '1')
-        repinc = (l[6] == '1')
-        dwinner = (int(l[3]) > int(l[4]))
-        rwinner = (int(l[4]) > int(l[3]))
-        if not dwinner and not rwinner: # third-party won - ignore it (completely? try to impute?)
-            print "Skipping race %s %s %s because no winner" % (l[0],state,distcode)
+        deminc = (l[5] == '1')        # democratic incumbent
+        repinc = (l[6] == '1')        # republican incumbent
+        dwinner = (int(l[3]) > int(l[4]))  # democratic winner
+        rwinner = (int(l[4]) > int(l[3]))  # republican winner
+        if not dwinner and not rwinner:    # third-party won. TODO: How to handle.
+            print "Skipping race %s %s %s because no Dem/Rep winner" % (l[0],state,distcode)
             continue
         if not uncontested or dwinner:
             ans.append([myid,distcode,int(l[3]),'Dem',deminc,dwinner,''])
         if not uncontested or rwinner:
             ans.append([myid,distcode,int(l[4]),'Rep',repinc,rwinner,''])
-        if uncontested:
-            print "Uncontested: ",myid,distcode,l[3],dwinner,rwinner
-        # print(ans[-2])
-        # print(ans[-1])    
-        scnt += 1
+        # TODO: Handle differently? There are a lot of these.
+        # if uncontested:
+        #     print "Uncontested: ",myid,distcode,l[3],dwinner,rwinner
     return ans,yrs,states # ,mmd
 
+####################
 def read_all_data():
     """ read in all data files
+
+    # Reviewed 11.15.17
     """
     arr = []
     yrs = []
     states = []
-    arr,yrs,states,mmd = read_tsv_2010('34297-0001-Data.tsv') # state races up to 2010
-    # arr2,yrs2,states2,mmd2 = read_tsv_2010('SLERs2011to2012_only_2013_05_14.csv') # 2012 state races
-    # arr6,yrs6,states6 = read_fec_csv() # 2000 and later congressional - obsoleted by jacobson
-    arr6,yrs6,states6 = read_jacobson_csv()
-    arr7,yrs7,states7 = read_2012_state_csv('/home/gswarrin/research/gerrymander/data/stateleg2012plus.csv','9')
-    arr8,yrs8,states8 = read_2012_state_csv('/home/gswarrin/research/gerrymander/data/cong2016.csv','11')
 
-    # mmd += mmd2
-    # arr += arr2
+    arr,yrs,states,mmd = read_tsv_2010('34297-0001-Data.tsv') # state races up to 2010 from Harvard dataverse
+    arr6,yrs6,states6 = read_jacobson_csv('HR4614.csv',True)  # congressional races from Jacobson. Up to 2014.
+    arr7,yrs7,states7 = read_2012_state_csv('stateleg2012plus.csv','9') # State legislature 2012,14,16
+    arr8,yrs8,states8 = read_2012_state_csv('cong2016.csv','11')        # Congress 2016
+
     arr += arr6
     arr += arr7
     arr += arr8
@@ -372,15 +379,17 @@ def read_all_data():
     mmd_dict = dict()
     mmdyrs = sorted(set([x[0] for x in mmd]))
     for y in mmdyrs:
-        # if int(y)%2 == 1:
-        #     continue
         mmdst = map(lambda z: z[1], filter(lambda x: x[0] == y, mmd))
         mmd_dict[y] = sorted(mmdst)
-        # print y,sorted(mmdst)
     return arr,yrs,states,mmd_dict
 
-def set_winner_need_to_impute(elections,race,dist,demwinner,winvotes=1000,losevotes=0,dincum=False,rincum=False):
-    """
+####################################################################################
+def override_race(elections,race,dist,demwinner,winvotes=1000,losevotes=0,dincum=False,rincum=False):
+    """ Override the data in a particular race.
+
+    # Reviewed 11.15.17
+    Only for recognized errors in original data files.
+    TODO: Recheck.
     """
     if race not in elections.keys():
         print "WARNING: Trying to override data file, but key not present",race,dist
@@ -397,13 +406,16 @@ def set_winner_need_to_impute(elections,race,dist,demwinner,winvotes=1000,losevo
 
 def correct_errors(elections):
     """ fix hard-coded errors in data files (leave original data files unchanged!)
+
+    # Reviewed 11.15.17
+    This is by no means a comprehensive list I am sure
     """
     # believe it's a straight error in the file (uncontested race, so no votes listed)
-    set_winner_need_to_impute(elections,'2000_VA_11','VAVA4604',True,1000,0,True,False)
+    override_race(elections,'2000_VA_11','VAVA4604',True,1000,0,True,False)
 
     # Rodney Alexander switched parties in 2004 from Dem to Rep - Democrat in 2002 race
     # not sure why no votes listed in file
-    set_winner_need_to_impute(elections,'2002_LA_11','LALA1805',True,5028,4972,False,False)
+    override_race(elections,'2002_LA_11','LALA1805',True,5028,4972,False,False)
 
     # 2002 LALA1807 Chris Johns won with 86% against a libertarian - solidly republican since then...
     # WARNING: Imputed winner but value too small:  2002 LA 11 LALA1807 NoName Dem 1000 nan True True 0.469353411591
@@ -412,36 +424,40 @@ def correct_errors(elections):
     # 2008 LALA1802 - this was William Jefferson (money in the freezer...), so a strange year
     # not sure why no data in file - listing Jefferson as incumbent, but not sure that makes sense
     # given circumstances
-    set_winner_need_to_impute(elections,'2008_LA_11','LALA1802',True,33132,31318,True,False)
+    override_race(elections,'2008_LA_11','LALA1802',True,33132,31318,True,False)
 
-    ######################## Still need to address
+    # TODO: Look into these - have note that something is wrong.
     # LALA1804 in 1990s - gerrymandered and redrawn....
     # TXTX4309 in 1996 - gerrymandered and redrawn...
 
 #################################################################################
-# initialize everything
+# read data and impute votes
 def init_all():
-    """ read everything in and return data
+    """ read everything in, impute uncontested races and return data
+
+    # Reviewed 11.15.17
     """
+    # read in data from various files and place in a consistent format
     loc_arra,loc_yrs,loc_states,loc_mmd_dict = read_all_data()
+    # put into records that are easier to work with.
     loc_elections = make_records(loc_arra)
     
+    # list of possible state names taking into account variations used to
+    # keep track of different district plans within the same decade
     cycstates = []
     for elec in loc_elections.values():
         if elec.cyc_state not in cycstates:
             cycstates.append(elec.cyc_state)
     
+    # create_cycles includes the step of imputing votes
+    # grab everything up through 2010.
     loc_prior_cycles = create_cycles(loc_elections,loc_mmd_dict,True,False,False)
+    # grab everything since 2012.
     loc_recent_cycles = create_cycles(loc_elections,loc_mmd_dict,False,True,True)
 
-    for c in loc_prior_cycles:
-        for k in c.elecs.keys():
-            c.elecs[k].compute_overall()       
-
-    for c in loc_recent_cycles:
-        for k in c.elecs.keys():
-            c.elecs[k].compute_overall()       
-
+    # make sure any legal votes go down to reasonable amounts.
+    # TODO: Why am I picking 0.95 here?
+    # TODO: Print ones that need to be reset in this way?
     for elec in loc_elections.values():
         for i in range(elec.Ndists):
             if elec.demfrac[i] >= 1:
@@ -450,6 +466,11 @@ def init_all():
     return loc_arra, loc_yrs, loc_states, cycstates, loc_mmd_dict, \
         loc_elections, loc_prior_cycles, loc_recent_cycles
 
+#################################################################################
+#################################################################################
+#################################################################################
+
+#################################################################################
 def write_elections(fn,elections,mmd):
     """ write out all data for elections that aren't part of mmd along with imputation data
 

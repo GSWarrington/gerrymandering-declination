@@ -155,7 +155,7 @@ def get_avg_angle_sequence(elections,yr):
     d = dict()
     for elec in elections.values():
         if int(elec.yr) >= int(yr) and elec.chamber == '11' and elec.state not in notokstates:
-            ang = find_angle(elec.state,elec.demfrac)
+            ang = get_declination(elec.state,elec.demfrac)
             if ang > -2: # don't want to include fake ones!
                 if elec.state not in d.keys():
                     d[elec.state] = [abs(ang)]
@@ -174,7 +174,7 @@ def get_avg_alpha_sequence(elections,yr,alpha):
     d = dict()
     for elec in elections.values():
         if int(elec.yr) >= int(yr) and elec.chamber == '11' and elec.state not in notokstates:
-            gap = compute_alpha_curve(elec.demfrac,alpha)
+            gap = get_tau_gap(elec.demfrac,alpha)
             if elec.state not in d.keys():
                 d[elec.state] = [abs(gap)]
             else:
@@ -191,7 +191,7 @@ def get_angle_sequence(elections,yr,doabs=False):
     ans = []
     for elec in elections.values():
         if elec.yr == yr and elec.chamber == '11' and elec.state not in notokstates:
-            ang = find_angle(elec.state,elec.demfrac)
+            ang = get_declination(elec.state,elec.demfrac)
             if doabs:
                 ans.append([abs(ang),elec.state])
             else:
@@ -206,7 +206,7 @@ def get_gap_sequence(elections,yr,alpha,doabs=False):
     ans = []
     for elec in elections.values():
         if elec.yr == yr and elec.chamber == '11' and elec.state not in notokstates:
-            egap = compute_alpha_curve(elec.demfrac,alpha)
+            egap = get_tau_gap(elec.demfrac,alpha)
             if doabs:
                 ans.append([abs(egap),elec.state])
             else:
@@ -230,9 +230,9 @@ def compare_allyrs_overlap_sequences(elections,yr):
     l3 = []
     for elec in elections.values():
         if int(elec.yr) >= int(yr) and elec.chamber == '11' and elec.state not in notokstates:
-            l1.append([abs(find_angle(elec.state,elec.demfrac)),elec.state + elec.yr[-2:]])
-            l2.append([abs(compute_alpha_curve(elec.demfrac,0)),elec.state + elec.yr[-2:]])
-            l3.append([abs(compute_alpha_curve(elec.demfrac,1)),elec.state + elec.yr[-2:]])
+            l1.append([abs(get_declination(elec.state,elec.demfrac)),elec.state + elec.yr[-2:]])
+            l2.append([abs(get_tau_gap(elec.demfrac,0)),elec.state + elec.yr[-2:]])
+            l3.append([abs(get_tau_gap(elec.demfrac,1)),elec.state + elec.yr[-2:]])
     l1.sort(key=lambda x: x[0])
     l2.sort(key=lambda x: x[0])
     l3.sort(key=lambda x: x[0])
@@ -294,13 +294,13 @@ def make_cong_histo(elections):
     for elec in Melections.values():
         if elec.Ndists >= 8 and elec.chamber == '11' and int(elec.yr) >= 1972:
             totcong += 1
-            fang = find_angle(elec.state,elec.demfrac)
+            fang = get_declination(elec.state,elec.demfrac)
             if fang > -2:
                 congang.append(fang)
         if elec.Ndists >= 8 and elec.chamber == '9' and \
            (elec.yr not in Mmmd.keys() or elec.state not in Mmmd[elec.yr]):
             totstate += 1
-            fang = find_angle(elec.state,elec.demfrac)
+            fang = get_declination(elec.state,elec.demfrac)
             if fang > -2:
                 stateang.append(fang)
     print "Tot cong: ",totcong
@@ -339,14 +339,14 @@ def make_cong_deltaN_histo(elections):
     for elec in elections.values():
         if elec.Ndists >= 8 and elec.chamber == '11' and int(elec.yr) >= minyr:
             totcong += 1
-            fang = find_angle(elec.state,elec.demfrac)
+            fang = get_declination(elec.state,elec.demfrac)
             if abs(fang) < 2:
                 congang.append(fang)
                 congangN.append(fang*elec.Ndists*1.0/2)
         if elec.Ndists >= 8 and elec.chamber == '9' and int(elec.yr) >= minyr and \
            (elec.yr not in Mmmd.keys() or elec.state not in Mmmd[elec.yr]):
             totstate += 1
-            fang = find_angle(elec.state,elec.demfrac)
+            fang = get_declination(elec.state,elec.demfrac)
             if abs(fang) < 2:
                 stateang.append(fang)
                 stateangN.append(fang*elec.Ndists*1.0/2)
@@ -406,7 +406,7 @@ def make_heatmap_combine(elections,mmd):
     for elec in elections.values():
         if elec.Ndists >= 4 and elec.chamber == '11' and int(elec.yr) >= minyr and int(elec.yr)%2 == 0:
             totcong += 1
-            fang = find_angle(elec.state,elec.demfrac)
+            fang = get_declination(elec.state,elec.demfrac)
             if abs(fang) < 2:
                 congtmparr[allyrs.index(int(elec.yr))/5].append(fang)
                 congNtmparr[allyrs.index(int(elec.yr))/5].append(fang*elec.Ndists*1.0/2)
@@ -415,7 +415,7 @@ def make_heatmap_combine(elections,mmd):
         if elec.Ndists >= 4 and elec.chamber == '9' and int(elec.yr) >= minyr and \
            (elec.yr not in Mmmd.keys() or elec.state not in Mmmd[elec.yr]) and int(elec.yr)%2 == 0:
             totstate += 1
-            fang = find_angle(elec.state,elec.demfrac)
+            fang = get_declination(elec.state,elec.demfrac)
             if abs(fang) < 2:
                 statetmparr[allyrs.index(int(elec.yr))/5].append(fang)
                 stateNtmparr[allyrs.index(int(elec.yr))/5].append(fang*elec.Ndists*1.0/2)

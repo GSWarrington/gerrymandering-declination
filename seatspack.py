@@ -31,7 +31,7 @@ def seat_shifts(elecs):
             if int(elec.yr) == yr and elec.chamber == '11' and elec.Ndists >= 1: # and \
             # len(filter(lambda x: x <= 0.5, elec.demfrac)) >= 0.2*elec.Ndists and \
             # len(filter(lambda x: x <= 0.5, elec.demfrac)) <= 0.8*elec.Ndists:
-                dec = find_angle('',elec.demfrac)
+                dec = get_declination('',elec.demfrac)
                 # if elec.Ndists < 6 and abs(round(dec*elec.Ndists*(3.0/8))) >= 1 and abs(dec) < 2:
                 #     print yr,elec.state,dec*elec.Ndists*(3.0/8)
                 if abs(dec) < 2:
@@ -245,22 +245,22 @@ def pandc_four_options(st,yr,arr):
     # pro-Democratic crack
     isokrp,narrrp = seats_pack_or_crack(tarr,False)
 
-    dec = find_angle('',arr)*multfact*N
-    deci = find_angle('',tarr)*multfact*N
+    dec = get_declination('',arr)*multfact*N
+    deci = get_declination('',tarr)*multfact*N
     if isokdc:
-        ansdem.append([N,find_angle('',narrdc)*multfact*N-dec])
+        ansdem.append([N,get_declination('',narrdc)*multfact*N-dec])
         if abs(ansdem[-1][1]) >= 2:
             print st,yr,"demc",ansdem[-1],narrdc
     if isokdp:
-        ansdem.append([N,find_angle('',narrdp)*multfact*N-dec])
+        ansdem.append([N,get_declination('',narrdp)*multfact*N-dec])
         if abs(ansdem[-1][1]) >= 2:
             print st,yr,"demp",ansdem[-1],narrdp
     if isokrc:
-        ansrep.append([N,deci-find_angle('',narrrc)*multfact*N])
+        ansrep.append([N,deci-get_declination('',narrrc)*multfact*N])
         if abs(ansrep[-1][1]) >= 2:
             print st,yr,"repc",ansrep[-1],narrrc
     if isokrp:
-        ansrep.append([N,deci-find_angle('',narrrp)*multfact*N])
+        ansrep.append([N,deci-get_declination('',narrrp)*multfact*N])
         if abs(ansrep[-1][1]) >= 2:
             print st,yr,"repp",ansrep[-1],narrrp
     return ansdem,ansrep
@@ -525,23 +525,23 @@ def eg_pandc_four_options(st,yr,arr,betac,betav,verbose=True):
     # pro-Democratic crack
     isokrp,narrrp = seats_pack_or_crack(tarr,False)
 
-    est_orig = compute_alpha_curve(carr,0)*N
-    est_origi = compute_alpha_curve(tarr,0)*N
+    est_orig = get_tau_gap(carr,0)*N
+    est_origi = get_tau_gap(tarr,0)*N
 
     if isokdc:
-        ansdem.append([N,-est_orig+compute_alpha_curve(narrdc,0)*N])
+        ansdem.append([N,-est_orig+get_tau_gap(narrdc,0)*N])
         if abs(ansdem[-1][1]) >= 2 or verbose:
             print st,yr,"demc",ansdem[-1],narrdc
     if isokdp:
-        ansdem.append([N,-est_orig+compute_alpha_curve(narrdp,0)*N])
+        ansdem.append([N,-est_orig+get_tau_gap(narrdp,0)*N])
         if abs(ansdem[-1][1]) >= 2 or verbose:
             print st,yr,"demp",ansdem[-1],narrdp
     if isokrc:
-        ansrep.append([N,-compute_alpha_curve(narrrc,0)*N+est_origi])
+        ansrep.append([N,-get_tau_gap(narrrc,0)*N+est_origi])
         if abs(ansrep[-1][1]) >= 2 or verbose:
             print st,yr,"repc",ansrep[-1],narrrc
     if isokrp:
-        ansrep.append([N,-compute_alpha_curve(narrrp,0)*N+est_origi])
+        ansrep.append([N,-get_tau_gap(narrrp,0)*N+est_origi])
         if abs(ansrep[-1][1]) >= 2 or verbose:
             print st,yr,"repp",ansrep[-1],narrrp
     return ansdem,ansrep
@@ -1218,8 +1218,8 @@ def compare_dec(gammaint,gammaslo):
             # print lr
 
             # print origl,origp
-            pans = find_angle('',origp)
-            lans = find_angle('',origl)
+            pans = get_declination('',origp)
+            lans = get_declination('',origl)
             if abs(pans) < 2 and abs(lans) < 2:
                 decp.append(pans*multfact*len(vote))
                 decl.append(lans*multfact*len(vote))
@@ -1288,8 +1288,8 @@ def compare_dec(elecs):
                 origp = sorted([lrd[yr][0] + lrd[yr][1]*x for x in pvote])
 
                 # print origl,origp
-                lans = find_angle('',elec.demfrac) # origl)
-                pans = find_angle('',origp)
+                lans = get_declination('',elec.demfrac) # origl)
+                pans = get_declination('',origp)
                 if abs(lans) < 2 and abs(lans) < 2:
                     decl.append(lans) # *multfact*len(lvote))
                     decp.append(pans) # *multfact*len(pvote))

@@ -241,7 +241,6 @@ def sensitivity(elections,chm,amt):
             for elec in elections.values():
                 if int(elec.yr) >= 1972 and elec.chamber == chm and 1 in elec.status and \
                     1 <= len(filter(lambda x: x > 0.5, elec.demfrac)) < elec.Ndists:
-                    # print elec.Dfrac
                     vals = []
                     for j in range(len(elec.demfrac)):
                         if elec.status[j] == 2:
@@ -251,10 +250,10 @@ def sensitivity(elections,chm,amt):
                                 vals.append(max(0.51,elec.demfrac[j]+dwinup*amt))
                             else:
                                 vals.append(min(0.49,elec.demfrac[j]+dloseup*amt))
-                    ang = find_angle(elec.state,elec.demfrac)
-                    newang = find_angle(elec.state,vals)
-                    ogap = compute_alpha_curve(elec.demfrac,1)
-                    newogap = compute_alpha_curve(vals,1)
+                    ang = get_declination(elec.state,elec.demfrac)
+                    newang = get_declination(elec.state,vals)
+                    ogap = get_tau_gap(elec.demfrac,1)
+                    newogap = get_tau_gap(vals,1)
                     sz.append(len(filter(lambda x: x == 1, elec.status))*1.0/elec.Ndists)
                     angdiff.append(ang-newang)
                     ogapdiff.append(ogap-newogap)

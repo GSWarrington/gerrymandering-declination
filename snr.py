@@ -19,10 +19,10 @@ def compare_snr(elecs,gval):
                 elecs[myid1].Ndists >= 8:
                 isokay = False
                 for j in range(len(xvals)):
-                    ans1 = compute_alpha_curve(elecs[myid1].demfrac,xvals[j])
-                    ans2 = compute_alpha_curve(elecs[myid2].demfrac,xvals[j])
-                    ans3 = find_angle(elecs[myid1].state,elecs[myid1].demfrac)
-                    ans4 = find_angle(elecs[myid2].state,elecs[myid2].demfrac)
+                    ans1 = get_tau_gap(elecs[myid1].demfrac,xvals[j])
+                    ans2 = get_tau_gap(elecs[myid2].demfrac,xvals[j])
+                    ans3 = get_declination(elecs[myid1].state,elecs[myid1].demfrac)
+                    ans4 = get_declination(elecs[myid2].state,elecs[myid2].demfrac)
                     # print "%d %.2f %.2f %.2f %.2f" % (i,xvals[j],abs(ans1-ans2),ans1,ans2)
                     if ans3 > -2 and ans4 > -2:
                         isokay = True
@@ -87,8 +87,8 @@ def plot_snr(elecs):
             if myid1 in elecs.keys() and myid2 in elecs.keys() and \
                 st not in Mmmd[yrs[i]] and st not in Mmmd[prior_yr]:
                 for j in range(len(xvals)):
-                    ans1 = compute_alpha_curve(elecs[myid1].demfrac,xvals[j])
-                    ans2 = compute_alpha_curve(elecs[myid2].demfrac,xvals[j])
+                    ans1 = get_tau_gap(elecs[myid1].demfrac,xvals[j])
+                    ans2 = get_tau_gap(elecs[myid2].demfrac,xvals[j])
                     # print "%d %.2f %.2f %.2f %.2f" % (i,xvals[j],abs(ans1-ans2),ans1,ans2)
                     gaps[j][i] += abs(ans1-ans2)
                 races[i] += 1
@@ -143,10 +143,10 @@ def compare_snr_corr(elecs,myplt):
                 st not in Mmmd[yrs[i]] and st not in Mmmd[prior_yr]:
                 # print elecs[myid1].demfrac
                 for j in range(len(xvals)):
-                    ans1 = compute_alpha_curve(elecs[myid1].demfrac,xvals[j])
-                    ans2 = compute_alpha_curve(elecs[myid2].demfrac,xvals[j])
-                    # ans1 = find_angle('ll',elecs[myid1].demfrac)
-                    # ans2 = find_angle('mm',elecs[myid2].demfrac)
+                    ans1 = get_tau_gap(elecs[myid1].demfrac,xvals[j])
+                    ans2 = get_tau_gap(elecs[myid2].demfrac,xvals[j])
+                    # ans1 = get_declination('ll',elecs[myid1].demfrac)
+                    # ans2 = get_declination('mm',elecs[myid2].demfrac)
                     # if ans1 != None and ans2 != None:
                     # print "%d %.2f %.2f %.2f %.2f" % \
                     # (i,xvals[j],abs(ans1-ans2),ans1,ans2)
@@ -243,11 +243,11 @@ def create_anova_csv(elecs,chamber,useangle=True,gval=1):
                 (prior_yr not in Mmmd.keys() or st not in Mmmd[prior_yr]) and \
                 elecs[myid1].Ndists >= 8:
                 # if useangle:
-                ans1 = find_angle(elecs[myid1].state,elecs[myid1].demfrac)
-                ans2 = find_angle(elecs[myid2].state,elecs[myid2].demfrac)
+                ans1 = get_declination(elecs[myid1].state,elecs[myid1].demfrac)
+                ans2 = get_declination(elecs[myid2].state,elecs[myid2].demfrac)
                 # else:
-                ans3 = compute_alpha_curve(elecs[myid1].demfrac,gval)
-                ans4 = compute_alpha_curve(elecs[myid2].demfrac,gval)
+                ans3 = get_tau_gap(elecs[myid1].demfrac,gval)
+                ans4 = get_tau_gap(elecs[myid2].demfrac,gval)
                 if i in [4,9,14,19]:
                     f.write("INTER,%s,%.3f\n" % (yrs[i],abs(ans1-ans2)+abs(ans3-ans4)))
                 else:
@@ -278,10 +278,10 @@ def compare_corr_coeff(elecs,chamber,gval):
                 (yrs[i] not in Mmmd.keys() or st not in Mmmd[yrs[i]]) and \
                 (prior_yr not in Mmmd.keys() or st not in Mmmd[prior_yr]) and \
                 elecs[myid1].Ndists >= 8:
-                ans1 = compute_alpha_curve(elecs[myid1].demfrac,gval)
-                ans2 = compute_alpha_curve(elecs[myid2].demfrac,gval)
-                ans3 = find_angle(elecs[myid1].state,elecs[myid1].demfrac)
-                ans4 = find_angle(elecs[myid2].state,elecs[myid2].demfrac)
+                ans1 = get_tau_gap(elecs[myid1].demfrac,gval)
+                ans2 = get_tau_gap(elecs[myid2].demfrac,gval)
+                ans3 = get_declination(elecs[myid1].state,elecs[myid1].demfrac)
+                ans4 = get_declination(elecs[myid2].state,elecs[myid2].demfrac)
                 # print "%d %.2f %.2f %.2f %.2f" % (i,xvals[j],abs(ans1-ans2),ans1,ans2)
                 if ans3 > -2 and ans4 > -2:
                     print yrs[i],elecs[myid1].state,elecs[myid1].Ndists,ans3,ans4,abs(ans3-ans4)
@@ -356,10 +356,10 @@ def anova_on_corr_coeff(elecs,chamber,gval):
                 (yrs[i] not in Mmmd.keys() or st not in Mmmd[yrs[i]]) and \
                 (prior_yr not in Mmmd.keys() or st not in Mmmd[prior_yr]) and \
                 elecs[myid1].Ndists >= 10:
-                ans1 = compute_alpha_curve(elecs[myid1].demfrac,gval)
-                ans2 = compute_alpha_curve(elecs[myid2].demfrac,gval)
-                ans3 = find_angle(elecs[myid1].state,elecs[myid1].demfrac)
-                ans4 = find_angle(elecs[myid2].state,elecs[myid2].demfrac)
+                ans1 = get_tau_gap(elecs[myid1].demfrac,gval)
+                ans2 = get_tau_gap(elecs[myid2].demfrac,gval)
+                ans3 = get_declination(elecs[myid1].state,elecs[myid1].demfrac)
+                ans4 = get_declination(elecs[myid2].state,elecs[myid2].demfrac)
                 # print "%d %.2f %.2f %.2f %.2f" % (i,xvals[j],abs(ans1-ans2),ans1,ans2)
                 if ans3 > -2 and ans4 > -2:
                     # print yrs[i],elecs[myid1].state,elecs[myid1].Ndists,ans3,ans4,abs(ans3-ans4)
@@ -412,10 +412,10 @@ def plot_snr_corr(elecs,myplt):
                 st not in Mmmd[yrs[i]] and st not in Mmmd[prior_yr]:
                 # print elecs[myid1].demfrac
                 for j in range(len(xvals)):
-                    ans1 = compute_alpha_curve(elecs[myid1].demfrac,xvals[j])
-                    ans2 = compute_alpha_curve(elecs[myid2].demfrac,xvals[j])
-                    # ans1 = find_angle('ll',elecs[myid1].demfrac)
-                    # ans2 = find_angle('mm',elecs[myid2].demfrac)
+                    ans1 = get_tau_gap(elecs[myid1].demfrac,xvals[j])
+                    ans2 = get_tau_gap(elecs[myid2].demfrac,xvals[j])
+                    # ans1 = get_declination('ll',elecs[myid1].demfrac)
+                    # ans2 = get_declination('mm',elecs[myid2].demfrac)
                     # if ans1 != None and ans2 != None:
                     # print "%d %.2f %.2f %.2f %.2f" % \
                     # (i,xvals[j],abs(ans1-ans2),ans1,ans2)

@@ -83,20 +83,12 @@ def get_frac_array(elections):
                 ans.append(elec.rcands[i].frac)
     return ans
 
-def discrepancy(elections):
-    """ find races with large egap-fgap discrepancies that are not too one-sided
-    """
-    for k in elections.keys():
-        elec = elections[k]
-        print "%.4f %.4f %.4f %.4f %d %s %s %s" % \
-            (elec.egap-elec.fgap,elec.egap,elec.fgap,elec.Ddists*1.0/elec.Ndists,elec.Ndists,elec.yr,elec.state,elec.chamber)
-
 def plot_race(loc_elections,yr,state,chamber):
     """
     """
     k = '_'.join([yr,state,chamber])
     elec = loc_elections[k]
-    tmpstr = "e=%.4f..f=%.4f" % (elec.egap,elec.fgap)
+    tmpstr = "e=%.4f" % (elec.egap)
     # print tmpstr
     fn = 'newraces-' + k # + tmpstr
     arr1 = []
@@ -135,7 +127,6 @@ def get_stabilizers(elections):
         if tstr in elections.keys() and elec.Ndists >= 8:
             nelec = elections[tstr]
             stabe.append([nelec.egap,elec.egap])
-            stabf.append([nelec.fgap,elec.fgap])
             stabh.append([nelec.hgap,elec.hgap])
             stabi.append([nelec.igap,elec.igap])
     make_scatter('stabe',[x[0] for x in stabe],[x[1] for x in stabe],'')
@@ -159,9 +150,9 @@ def new_plot_timeseries(elections):
         l9 = []
         l11 = []
         for elec in filter(lambda y: y.state == st and int(y.yr) >= 1972, elections.values()):
-            a = compute_alpha_curve(elec.demfrac,0)
-            b = compute_alpha_curve(elec.demfrac,1)
-            c = find_angle(elec.state,elec.demfrac)
+            a = get_tau_gap(elec.demfrac,0)
+            b = get_tau_gap(elec.demfrac,1)
+            c = get_declination(elec.state,elec.demfrac)
             if elec.chamber == '9':
                 l9.append([elec.yr,a,b,c])
             if elec.chamber == '11':
@@ -198,11 +189,11 @@ def plot_timeseries(elections):
         l11 = []
         for elec in filter(lambda y: y.state == st, elections.values()):
             if elec.chamber == '8':
-                l8.append([elec.yr,elec.egap,elec.fgap,elec.hgap,elec.igap])
+                l8.append([elec.yr,elec.egap,0,elec.hgap,elec.igap])
             if elec.chamber == '9':
-                l9.append([elec.yr,elec.egap,elec.fgap,elec.hgap,elec.igap])
+                l9.append([elec.yr,elec.egap,0,elec.hgap,elec.igap])
             if elec.chamber == '11':
-                l11.append([elec.yr,elec.egap,elec.fgap,elec.hgap,elec.igap])
+                l11.append([elec.yr,elec.egap,0,elec.hgap,elec.igap])
         l8 = sorted(l8)
         l9 = sorted(l9)
         l11 = sorted(l11)
@@ -219,20 +210,20 @@ def plot_timeseries(elections):
         plt.show()
         plt.close()    
 
-def get_frac_unopposed(elections):
-    """ get array of fraction of races in an election that are unopposed
-    """ 
-    arr = []
-    for k in elections.keys():
-        unop = 0
-        for i in range(elections[k].Ndists):
-            actual_votes,dv,rv = elections[k].compute_district_vote(i)
-            if actual_votes == False:
-                unop += 1
-        if elections[k].chamber != '11':
-            elections[k].unopposed = unop*1.0/elections[k].Ndists
-            arr.append(unop*1.0/elections[k].Ndists)
-    make_histogram('unopposed',arr)
+# def get_frac_unopposed(elections):
+#     """ get array of fraction of races in an election that are unopposed
+#     """ 
+#     arr = []
+#     for k in elections.keys():
+#         unop = 0
+#         for i in range(elections[k].Ndists):
+#             actual_votes,dv,rv = elections[k].compute_district_vote(i)
+#             if actual_votes == False:
+#                 unop += 1
+#         if elections[k].chamber != '11':
+#             elections[k].unopposed = unop*1.0/elections[k].Ndists
+#             arr.append(unop*1.0/elections[k].Ndists)
+#     make_histogram('unopposed',arr)
                                    
 # discrepancy(elections)
 # plot_race('2008','CA','11')
@@ -285,7 +276,7 @@ def plot_extreme_grid(fnstr,c,r,arrlist,extlist,statone,stattwo):
         # else:
         #     tmpstr = '$\\alpha = ' + ("% .3f$" % (k[0]))
         axes[i].annotate(statone[jj], (0.49,0.12))
-        # tmpstr = '$\mathrm{Gap}_1 = ' + ("% .3f$" % (compute_alpha_curve(elec.demfrac,1)))
+        # tmpstr = '$\mathrm{Gap}_1 = ' + ("% .3f$" % (get_tau_gap(elec.demfrac,1)))
         axes[i].annotate(stattwo[jj], (0.34,0.02))
         axes[i].annotate(extlist[jj], (0.04,0.82))
 

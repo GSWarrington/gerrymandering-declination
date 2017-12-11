@@ -20,7 +20,7 @@ def random_combination(iterable, r):
     indices = sorted(random.sample(xrange(n), r))
     return tuple(pool[i] for i in indices)
 
-def find_angle(st,vals):
+def get_declination(st,vals):
     """ Now expressed as a fraction of 90 degrees
     """
     bel = sorted(filter(lambda x: x <=  0.5, vals))
@@ -492,7 +492,7 @@ def actual_declination(yr,st):
             vals.append(xvote)
     f.close()
     # print yr,tot," expected: ",expd
-    return find_angle('',vals),len(vals)
+    return get_declination('',vals),len(vals)
 
 def actual_declination_from_elections(yr):
     """ read in who won the district versus mccain share of vote
@@ -505,7 +505,7 @@ def actual_declination_from_elections(yr):
     d = dict()
     for elec in elecs.values():
         if int(elec.yr) == yr and elec.chamber == '11':
-            d[elec.state] = find_angle('',elec.demfrac)
+            d[elec.state] = get_declination('',elec.demfrac)
     return d        
 
 def simul_declination(st):
@@ -519,7 +519,7 @@ def simul_declination(st):
         l = line.rstrip().split('\t')
         l2 = map(lambda x: (1-float(x)), l[1:])
         tmp = 0
-        tmp = find_angle('',l2)
+        tmp = get_declination('',l2)
         # print "%.3f" % (tmp)
         expd.append(tmp)
 
