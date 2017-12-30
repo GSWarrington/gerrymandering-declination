@@ -246,7 +246,6 @@ def corr_with_half(elecs):
             print "Correlation between %s and %s: %.3f, %.3f" % (labs[i],labs[j],a1,pv1)
             make_scatter('test-' + labs[i] + '-' + labs[j],ans[i],ans[j])
 
-
 def count_totally_uncontested(cycles):
     """ count districts uncontested during entire cycle
     """

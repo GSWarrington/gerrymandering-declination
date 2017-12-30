@@ -49,6 +49,11 @@ def read_tsv_2010(fn):
     yrs = []    # years
     states = [] # states
     mmd = []    # for keeping track of who has multi-member districts
+                # some elections have a combination of SMDs and MMDs.
+                # So we don't know at read time whether an election is valid.
+                # As such, we just read in all lines and make a record of which
+                # elections contain at least one MMD. These can be kept track of
+                # when SMD-only elections are placed into records.
 
     for line in f:
         cnt += 1
@@ -85,6 +90,8 @@ def read_tsv_2010(fn):
         # 500 = non-partisan election
         # 600 = write-in/scattering
         # 700 = unidentified
+
+        # keep track of districts that appear because we see a third-party candidate
         if l[hdrs.index('v21')] not in ['100','200']:
             # print "Candidate not Dem or a Rep: ",l[hdrs.index('v05')],l[hdrs.index('v02')],\
             #     l[hdrs.index('v11')],l[hdrs.index('v21')]
@@ -92,7 +99,8 @@ def read_tsv_2010(fn):
                     l[hdrs.index('v11')]
             if tmpid not in nonDRdists:
                 nonDRdists.append(tmpid)
-            continue
+            # 12/11 - want to add in the third-party candidates
+            # continue
 
         # The 2012 data doesn't contain all columns. Not relevant for <= 2010 currently used.
         # Ignore races in which more than one Democrat or one Republican running.
@@ -116,9 +124,11 @@ def read_tsv_2010(fn):
         myid = '_'.join([l[hdrs.index('v05')],l[hdrs.index('v02')], l[hdrs.index('v07')]])
         if l[hdrs.index('v23')] == ' ' or l[hdrs.index('v23')] == '': # candidates vote total
             l[hdrs.index('v23')] = 0
+        # 12/11 - initialize party to what's in the file
+        party = l[hdrs.index('v21')]
         if l[hdrs.index('v21')] == '100':
             party = 'Dem'
-        else:
+        if l[hdrs.index('v21')] == '200':
             party = 'Rep'
         # v11 - district identifier
         # v23 - candidate's vote total
@@ -141,8 +151,9 @@ def read_tsv_2010(fn):
             newdistid = l[hdrs.index('v08')]+l[hdrs.index('v09')]+l[hdrs.index('v10a')]+\
                         l[hdrs.index('v10b')]+l[hdrs.index('v10c')]
 
-        DRdists.append('_'.join([l[hdrs.index('v05')],l[hdrs.index('v02')], l[hdrs.index('v07')]])\
-                       + l[hdrs.index('v11')])
+        if party in ['Dem','Rep']:
+            DRdists.append('_'.join([l[hdrs.index('v05')],l[hdrs.index('v02')], l[hdrs.index('v07')]])\
+                           + l[hdrs.index('v11')])
         str = [myid,newdistid,int(l[hdrs.index('v23')]),party,incum,winner,'']
         ans.append(str)      
     # keep track of which races aren't kept because no major-party candidate
@@ -167,12 +178,18 @@ def read_jacobson_csv(fn,ignore_pre_1972=True):
     yrs = list of years in data file
     states = list of states in data file
 
-    Nothing is returned for MMDs since we're outlawed in 1967 
+    Nothing is returned for MMDs since these were outlawed for congressional elections in 1967 
       and we're restricting to elections since 1972.
     In file, each election is encoded in a single line (unlike with 34297).
     So output has to split into two lines.
 
-    Congressional races in which 3rd party won (so election ignored):
+    Note that Jacobson file does not have any third-party info
+
+    Congressional races in which 3rd party won (so race ignored):
+    These leads to 8 *elections* being ignored - namely the ones in VT since only one race for each.
+    23 years (1972..2016) * 45 states (excluding AK, DE, ND, VT, WY) = 1150 races.
+    Minus the 8 leaves 1142 in database.
+    
     1972 MA 9th - Joe Moakley won (ended up caucusing with Dems FWIW)
     1990-2004 VT 1st - Bernie Sanders won
     2000 VA 5th - Virgil Goode won Independent
@@ -265,7 +282,7 @@ def read_jacobson_csv(fn,ignore_pre_1972=True):
         #     print "Uncontested: ",myid,state+l[1],dvotes,dwinner,rwinner
         if (int(l[0]) % 2) == 1:
             print "Odd year: ",myid,state+l[1],dvotes,dwinner,rwinner
-    return ans,yrs,states # ,mmd
+    return ans,yrs,states
 
 ####################################
 def read_2012_state_csv(fn,chamber):
@@ -352,7 +369,7 @@ def read_2012_state_csv(fn,chamber):
         # TODO: Handle differently? There are a lot of these.
         # if uncontested:
         #     print "Uncontested: ",myid,distcode,l[3],dwinner,rwinner
-    return ans,yrs,states # ,mmd
+    return ans,yrs,states
 
 ####################
 def read_all_data():
@@ -368,6 +385,10 @@ def read_all_data():
     arr6,yrs6,states6 = read_jacobson_csv('HR4614.csv',True)  # congressional races from Jacobson. Up to 2014.
     arr7,yrs7,states7 = read_2012_state_csv('stateleg2012plus.csv','9') # State legislature 2012,14,16
     arr8,yrs8,states8 = read_2012_state_csv('cong2016.csv','11')        # Congress 2016
+
+    # if we don't want the recent state races - I think this removes 12 total
+    # yrs7 = []
+    # states7 = []
 
     arr += arr6
     arr += arr7
@@ -440,8 +461,12 @@ def init_all():
     # read in data from various files and place in a consistent format
     loc_arra,loc_yrs,loc_states,loc_mmd_dict = read_all_data()
     # put into records that are easier to work with.
-    loc_elections = make_records(loc_arra)
-    
+    loc_elections,tot_cong,tot_state,cong_yr_lims,state_yr_lims = make_records(loc_arra)
+    print "Total congressional races read in from orignial data files: %d - years %s" % (tot_cong,cong_yr_lims)
+    print "Total state races read in from original data files: %d years %s" % (tot_state,state_yr_lims)
+
+    # if 1 == 1:
+    #     return loc_elections,loc_mmd_dict
     # list of possible state names taking into account variations used to
     # keep track of different district plans within the same decade
     cycstates = []

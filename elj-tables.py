@@ -44,5 +44,45 @@ def make_table_2012(elecs):
     ans = ans[::-1]
     for x in ans:
         print x[1]
+
+def make_alldec_table(elecs,states,mmd,yrmax,chamber,verbose=False):
+    """ Output data for all elections in database
+    """
+    tot = 0
+    for state in sorted(states):
+        row = [state + ' & ' ]
+        isok = False
+        for yrint in range(1972,yrmax+1):
+            key = '_'.join([str(yrint),state,chamber])
+            dec = 2
+            # only state election not MMD and one side wins all seats is 1974_AL_9.
+            if key in elecs.keys():
+                # print key
+                dec = get_declination(state,elecs[key].demfrac)
+                # if count here get 634 - so only one - 
+            if abs(dec) == 2 or (chamber == '9' and str(yrint) in mmd.keys() and state in mmd[str(yrint)]):
+                row.append(" ")
+                if abs(dec) == 2 and key in elecs.keys():
+                    print "Whoops: ",key
+            else:
+                isok = True
+                row.append("%.2f" % (dec))
+                # tot += 1  - if count here get 633
+            if yrint < yrmax:
+                row.append(" & ")
+            else:
+                row.append("\\\\")
+        if isok:
+            print ''.join(row)
+    if verbose:
+        print "Total number of values for %s is: %d" % (chamber,tot)
+    return tot
+
+# Table 1 - only states in 2012
+# make_table_2012(Nelections)
+# Table 2 - worst of all time
 # make_extreme_table(Nelections,Nstates,Nmmd,'11')
-make_table_2012(Nelections)
+# Table 3 - all state elections
+print make_alldec_table(Nelections,Nstates,Nmmd,2010,'9',True)
+# Table 4 - all congressional elections
+# print make_alldec_table(Nelections,Nstates,Nmmd,2016,'11',True)

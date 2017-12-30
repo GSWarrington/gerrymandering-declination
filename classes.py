@@ -281,16 +281,21 @@ class Cycle:
                     print "WARNING: status not set",elec.yr,elec.cyc_state,elec.chamber,i
                     return
                 if elec.status[i] == 2: # don't need to impute
+                    print "NOTE: Known. No need to impute %s %s %s %s" % (self.min_year,elec.cyc_state,elec.dists[i],elec.chamber)
                     continue
                 if elec.status[i] in [0,1]: # needs to be (re)imputed
                     if elec.dists[i] in self.dist_lookup.keys(): # district is in model
+                        print "NOTE: In model %s %s %s %s" % (self.min_year,elec.cyc_state,elec.dists[i],elec.chamber)
                         u0jk = mean(predd['u_0jk'][:,self.dist_lookup[elec.dists[i]]])
                     elif elec.dists[i] in allDem_fil: # impute from consistently won democratic districts
+                        print "NOTE: Consistently uncontested %s %s %s %s" % (self.min_year,elec.cyc_state,elec.dists[i],elec.chamber)
                         u0jk = self.dwin[1]*np.random.randn(1)[0] + self.dwin[0]
-                    elif elec.dists[i] in allRep_fil: # impute from consistently won democratic districts
+                    elif elec.dists[i] in allRep_fil: # impute from consistently won republican districts
+                        print "NOTE: Consistently uncontested %s %s %s %s" % (self.min_year,elec.cyc_state,elec.dists[i],elec.chamber)
                         u0jk = self.rwin[1]*np.random.randn(1)[0] + self.rwin[0]
                     else:
-                        print "WARNING: Rare! never contested, but flipped between parties"
+                        print "NOTE: Rare! never contested, but flipped between parties %s %s %s %s" % \
+                            (self.min_year,elec.cyc_state,elec.dists[i],elec.chamber)
                         u0jk = mean(predd['u_0jk'][:,1+randrange(len(predd['u_0jk'][0])-1)])
                         
                     winD = mean(predd['win_D'])
@@ -390,6 +395,7 @@ class Gerry:
         self.dists = []                        # list of districts (as strings)
         self.dcands = []                       # Candy: democratic candidate in each district
         self.rcands = []                       # Candy: republican candidate in each district
+        self.thdpty = []                        # Candy: list of other candidates
         self.status = []                       # uninit=-1, need to impute=0, has been imputed=1, okay from start=2
         self.demfrac = []                      # dem fraction of vote (only valid if status >= 1)
         self.pvote = []                        # dem frac of presidential vote
@@ -421,6 +427,12 @@ class Gerry:
                 g.rcands.append(self.rcands[i].mycopy())
             else:
                 g.rcands.append(None)
+            if self.thdpty[i] != None:
+                g.thdpty.append([])
+                for j in range(len(self.thdpty[i])):
+                    g.thdpty[i].append(self.thdpty[i][j].mycopy())
+            else:
+                g.thdpty.append(None)    
         g.unopposed = self.unopposed
         g.egap = self.egap
         g.status = [self.status[j] for j in range(len(self.status))]
@@ -457,24 +469,36 @@ class Gerry:
             make sure winners votes are greater than loser's (even if needs to be imputed eventually)
             store demfrac in appropriate place
 
-        # Raeviewed 11.15.17
+        # Reviewed 11.15.17
+        # Edited 12.11.17 to deal with third-party only situations
         """          
+        todel = []
         for i in range(self.Ndists):
             dc = self.dcands[i]
             rc = self.rcands[i]
             if dc is None and rc is None:
+                # only third-party candidates - delete district and everything associated to it
                 # REAPP
-                print "WARNING: weird, this district doesn't exist",self.yr,self.cyc_state,self.chamber,i
-                return # GSW: Remove! Above shouldn't happen....
+                todel.append(i)
+                # print "WARNING: weird, this district doesn't exist",self.yr,self.cyc_state,self.chamber,i
+                print "Deleting %s in %s %s %s since no Rep or Dem" % (self.dists[i],self.yr,self.state,self.chamber)
+                # return # GSW: Remove! Above shouldn't happen....
+                continue
             if rc is None: # unopposed democrat
                 self.status[i] = 0 # needs to be imputed
                 self.dcands[i].winner = True
-                self.dcands[i].votes = 1000
+                if self.dcands[i] in [0,'',' ']:
+                    print "Dem. vote not valid in uncontested race"
+                # 12.11.17 - don't think this is needed anywhere
+                # self.dcands[i].votes = 1000
                 self.rcands[i] = Candy(self.dcands[i].race,'','Rep',0,False,False) # votes, incum, winner
             elif dc is None: # unopposed republican
                 self.status[i] = 0 # needs to be imputed
                 self.rcands[i].winner = True
-                self.rcands[i].votes = 1000
+                if self.rcands[i] in [0,'',' ']:
+                    print "Rep. vote not valid in uncontested race"
+                # 12.11.17 - don't think this is needed anywhere
+                # self.rcands[i].votes = 1000
                 self.dcands[i] = Candy(self.rcands[i].race,'','Dem',0,False,False) # votes, incum, winner
             elif dc.votes == 0 and rc.votes == 0: # two candidates, but neither has votes listed; shouldn't happen
                 if (dc.winner and rc.winner) or (not dc.winner and not rc.winner):
@@ -489,7 +513,18 @@ class Gerry:
             else:
                 self.demfrac[i] = dc.votes*1.0/(dc.votes+rc.votes)
                 self.status[i] = 2 # okay from start
-            
+        # delete ones we don't want
+        tokeep = filter(lambda x: x not in todel, range(self.Ndists))
+        self.dists = [self.dists[i] for i in tokeep]
+        self.dcands = [self.dcands[i] for i in tokeep]
+        self.rcands = [self.rcands[i] for i in tokeep]
+        self.thdpty = [self.thdpty[i] for i in tokeep]
+        self.status = [self.status[i] for i in tokeep]
+        self.demfrac = [self.demfrac[i] for i in tokeep]
+        self.pvote = [self.pvote[i] for i in tokeep]
+        self.impute_data = [self.impute_data[i] for i in tokeep]
+        self.Ndists -= len(todel)
+
 ###############################################################################################################
 def get_cyc_state(yrint,state,chamber):
     """ Get alternative name for state to keep track of mid-decade redistricting
@@ -515,8 +550,10 @@ def get_cyc_state(yrint,state,chamber):
                 return 'TX2'                                                                
                                                                                             
         ############## Congress 90s                                                         
+        # https://www.senate.mn/departments/scr/REDIST/Redsum/txsum.htm
+        # http://www.tlc.state.tx.us/redist/history/maps_congress.html
         if state == 'TX' and 2000 >= yrint >= 1992: # Bush vs. Verta                        
-            if 1996 >= yrint >= 1992:                                                       
+            if 1994 >= yrint >= 1992:                                                       
                 return 'TX1'                                                                
             else:                                                                           
                 return 'TX2'                                                                
@@ -674,6 +711,11 @@ def make_records(arr,elections=None,verbose=False):
       winner = True or False
       pvote = presidential vote as a percentage or '' if unknown
     """
+    tot_state = 0
+    tot_cong = 0
+    cong_yr_lims = [2100,1900]
+    state_yr_lims = [2100,1900]
+
     clobber = False
     if elections == None:
         elections = dict()
@@ -690,6 +732,19 @@ def make_records(arr,elections=None,verbose=False):
         if x[0] not in elections.keys(): 
             yr,state,chamber = x[0].split('_')
             elections[x[0]] = Gerry(yr,state,chamber)
+
+            if chamber == '11':
+                tot_cong += 1
+                if int(yr) < cong_yr_lims[0]:
+                    cong_yr_lims[0] = int(yr)
+                if int(yr) > cong_yr_lims[1]:
+                    cong_yr_lims[1] = int(yr)
+            if chamber == '9':
+                tot_state += 1
+                if int(yr) < state_yr_lims[0]:
+                    state_yr_lims[0] = int(yr)
+                if int(yr) > state_yr_lims[1]:
+                    state_yr_lims[1] = int(yr)
 
             # TODO: Make REAPP tags understandable (or remove)
             # REAPP - references code that was added to deal with mid-decade reapportionment
@@ -709,6 +764,7 @@ def make_records(arr,elections=None,verbose=False):
             elec.dists.append(elec.cyc_state + x[1])
             elec.dcands.append(None)
             elec.rcands.append(None)
+            elec.thdpty.append(None)
             elec.status.append(-1)
             elec.impute_data.append(['','','','','','']) # stored with election so easier to print and save
             elec.demfrac.append(0.0)
@@ -723,15 +779,18 @@ def make_records(arr,elections=None,verbose=False):
 
         if x[3] == 'Dem':
             elec.dcands[i] = Candy(x[0],'NoName','Dem',x[2],x[4],x[5]) # race,name,party,votes,incum,winner
-        if x[3] == 'Rep':
+        elif x[3] == 'Rep':
             elec.rcands[i] = Candy(x[0],'NoName','Rep',x[2],x[4],x[5]) # race,name,party,votes,incum,winner
-            
+        else:
+            if elec.thdpty[i] == None:
+                elec.thdpty[i] = []
+            elec.thdpty[i].append(Candy(x[0],'NoName',x[3],x[2],x[4],x[5])) # race,name,party,votes,incum,winner
     for elec in elections.values():
         elec.regularize_races()
             
     correct_errors(elections)
 
-    return elections
+    return elections,tot_cong,tot_state,cong_yr_lims,state_yr_lims
 
 def print_race(elections,yr,state,chamber):
     """ Print a single race if it ex

@@ -18,6 +18,8 @@ myb = '#8080ff'
 #     fig3_scatter
 #     fig_pack_crack_all
 
+# Fig 2p: 
+
 # Fig 3: Heatmap
 #   fig2_make_heatmap_e
 
@@ -197,7 +199,7 @@ def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
         lrg_sz = 420
         lrg_marksz = 20
         lrg_lw = 9
-        fs = 100
+        fs = 50
         for item in ([axe.title, axe.xaxis.label, axe.yaxis.label] +\
                      axe.get_xticklabels() + axe.get_yticklabels()):
             item.set_fontsize(fs)
@@ -458,6 +460,7 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
     """
     """
     
+    minN = 8
     totcong = 0
     totstate = 0
     congang = []
@@ -474,7 +477,7 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
     ccnt = 0
     scnt = 0
     for elec in elections.values():
-        if elec.Ndists >= 8 and elec.chamber == '11' and int(elec.yr) >= minyr and int(elec.yr)%2 == 0:
+        if elec.Ndists >= minN and elec.chamber == '11' and int(elec.yr) >= minyr and int(elec.yr)%2 == 0:
             totcong += 1
             fang = get_declination(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
             if abs(fang) < 2:
@@ -483,7 +486,7 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
                 congNtmparr[allyrs.index(int(elec.yr))].append(fang*elec.Ndists*1.0/2)
                 congang.append(fang)
                 congangN.append(fang*elec.Ndists*1.0/2)
-        if elec.Ndists >= 8 and elec.chamber == '9' and int(elec.yr) >= minyr and \
+        if elec.Ndists >= minN and elec.chamber == '9' and int(elec.yr) >= minyr and \
            (elec.yr not in mmd.keys() or elec.state not in mmd[elec.yr]) and int(elec.yr)%2 == 0:
             totstate += 1
             fang = get_declination(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
@@ -499,8 +502,8 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
     fig, axes = plt.subplots(1,2, figsize=(scalef*8,scalef*6),dpi=mydpi) 
     axes = axes.ravel()
 
-    # print "cong: ",ccnt
-    # print "state: ",scnt
+    print "Total number of congressional races included (dec defined, at least %d seats): %d" % (minN,ccnt)
+    print "Total number of state races included (dec defined, at least %d seats): %d" % (minN,scnt)
 
     numbins = 10
     bins = np.linspace(-1.2,0.8,numbins+1)
@@ -603,6 +606,7 @@ def fig3_deltae_linechart(elections,cycstates,mmd,yrmin,ax,chamber='9',prtitle=T
 
     ax.set_yticks([])
     ax.set_axis_on()
+    return cnt
 
 def fig_deltae_only(fnstr,elections,cycstates,mmd):
     """
@@ -623,20 +627,22 @@ def figS5_wi_scatter(fnstr,elections,mmd):
     lang = [[] for i in range(5)]
     lzgap = [[] for i in range(5)]
     cnt = 0
+    # (elec.yr not in mmd.keys() or elec.state not in mmd['1972']) and \
     for elec in elections.values():
         if 2010 >= int(elec.yr) >= 1972 and \
-           (elec.yr not in mmd.keys() or elec.state not in mmd['1972']) and \
-            elec.Ndists >= 8 and elec.chamber=='9':
+           ('_'.join(['1972',elec.state,'9']) in elections.keys()) and \
+           ('1972' not in mmd or elec.state not in mmd['1972']) and \
+            elec.chamber=='9':
             ang = get_declination(elec.state,elec.demfrac)
             zgap = get_tau_gap(elec.demfrac,0)
-            cnt += 1
 
             yridx = int((int(elec.yr)-1972)/10)
-            if ang != 0:
+            if abs(ang) != 2:
+                cnt += 1
                 lang[yridx].append(ang)
                 lzgap[yridx].append(zgap)
             # print "% .3f % .3f %3d %s %s %2d" % (ang,zgap,elec.Ndists,elec.yr,elec.state,int(elec.chamber))
-    # print "total: ",cnt
+    print "WI scatter - total number of races: ",cnt
     plt.figure(figsize=(scalef*8,scalef*8),dpi=mydpi)
     plt.gca().set_axis_bgcolor('none')
     plt.gca().xaxis.set_ticks_position('bottom')
@@ -650,11 +656,14 @@ def figS5_wi_scatter(fnstr,elections,mmd):
     legs = []
     for i in range(4):
         tmp = plt.scatter(lang[i],lzgap[i],color=cols[i],marker=markers[i])
-        # print stats.pearsonr(lang[0] + lang[1] + lang[2] + lang[3],lzgap[0] + lzgap[1] + lzgap[2] + lzgap[3])
         # print i,np.mean(lang[i]),np.mean(lzgap[i])
         legs.append(tmp)
         # print np.std(lang)
         # print np.std(lzgap)
+
+    print "WI scatter - Correlation r and p given by:"
+    print stats.pearsonr(lang[0] + lang[1] + lang[2] + lang[3],lzgap[0] + lzgap[1] + lzgap[2] + lzgap[3])
+
     plt.legend(legs,('1972-1980','1982-1990','1992-2000','2002-2010'),loc='upper left')
     plt.xlabel('Declination',fontsize=18)
     plt.ylabel('Twice the efficiency gap',fontsize=18)
@@ -723,16 +732,19 @@ def figS12_split_dec_states(fnstr,r,c,yr,chamber,states,elections,mymmd):
     for i,st in enumerate(nstates):
         xlab = (i > (r-1)*c)
         ylab = (i%c==0)
-        fig1_plot_one_declination(axes[i],st[1].demfrac,st[1].state,False,True,xlab,ylab,False)
+        fig1_plot_one_declination(axes[i],st[1].demfrac,st[1].state,plotslopes=True,lrg=False,\
+                                  plotdec=True,xaxislab=xlab,yaxislab=ylab,plotfullreg=False)
     for i in range(len(nstates),r*c):
         axes[i].set_axis_off()
 
-    plt.tight_layout()
+    fig.subplots_adjust(wspace=0.2, hspace=0.2)
+
+    # plt.tight_layout()
     plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
     plt.close()
 
 ############################################################################################
-def figS34_linechart(fnstr,elections,cycstates,mmd,chamber):
+def figS34_linechart(fnstr,elections,cycstates,mmd,chamber,verbose=False):
     """
     """
     plt.close()
@@ -757,14 +769,17 @@ def figS34_linechart(fnstr,elections,cycstates,mmd,chamber):
         axes[2].text(0.01,.48,'C',fontsize=16, transform=fig.transFigure, fontweight='bold')
         axes[3].text(0.5,.48,'D',fontsize=16, transform=fig.transFigure, fontweight='bold')
 
-    fig3_deltae_linechart(elections,cycstates,mmd,1972,axes[0],chamber,False)
-    fig3_deltae_linechart(elections,cycstates,mmd,1982,axes[1],chamber,False)
-    fig3_deltae_linechart(elections,cycstates,mmd,1992,axes[2],chamber,False)
-    fig3_deltae_linechart(elections,cycstates,mmd,2002,axes[3],chamber,False)
+    tot = 0
+    tot += fig3_deltae_linechart(elections,cycstates,mmd,1972,axes[0],chamber,False)
+    tot += fig3_deltae_linechart(elections,cycstates,mmd,1982,axes[1],chamber,False)
+    tot += fig3_deltae_linechart(elections,cycstates,mmd,1992,axes[2],chamber,False)
+    tot += fig3_deltae_linechart(elections,cycstates,mmd,2002,axes[3],chamber,False)
     if chamber == '11':
-        fig3_deltae_linechart(elections,cycstates,mmd,2012,axes[4],chamber,False)
+        tot += fig3_deltae_linechart(elections,cycstates,mmd,2012,axes[4],chamber,False)
         axes[5].set_axis_off()
 
+    if verbose:
+        print "Total number of elections included for %s is %d" % (chamber, tot)
     axes[0].set_axis_on()
     axes[1].set_axis_on()
     axes[2].set_axis_on()
@@ -775,27 +790,44 @@ def figS34_linechart(fnstr,elections,cycstates,mmd,chamber):
 
 #################################################################################################
 
-sns.reset_orig()
-fig0_create('fig0-dec-def','2014_NC_11',Nelections)
-sns.reset_orig()
-fig1_create('fig1-dec-ex','2014_NC_11',Nelections)
-sns.reset_orig()
-fig_variations('fig-var',Nelections,Ncyc,Nmmd)
-sns.reset_orig()
-fig2_make_heatmap_e('fig2-heatmap-e',Nelections,Nmmd)
-sns.reset_orig()
-fig_deltae_only('fig-deltae-only',Nelections,Ncyc,Nmmd)
-sns.reset_orig()
-figS5_wi_scatter('scatter-wi-nommd',Nelections,Nmmd)
-sns.reset_orig()
-fig_discuss('fig-discuss',Nelections)
+def make_elj_pics(arr):
+    """ convenience function
+    """
+    if 1 in arr:
+        sns.reset_orig()
+        fig0_create('fig0-dec-def','2014_NC_11',Nelections)
+    if 2 in arr:
+        sns.reset_orig()
+        fig1_create('fig1-dec-ex','2014_NC_11',Nelections)
+    if 3 in arr:
+        sns.reset_orig()
+        fig_variations('fig-var',Nelections,Ncyc,Nmmd)
+    if 4 in arr:
+        sns.reset_orig()
+        fig2_make_heatmap_e('fig2-heatmap-e',Nelections,Nmmd)
+    if 5 in arr:
+        sns.reset_orig()
+        fig_deltae_only('fig-deltae-only',Nelections,Ncyc,Nmmd)
+    if 6 in arr:
+        sns.reset_orig()
+        figS5_wi_scatter('scatter-wi-nommd',lelecs,lmmd)
+    if 7 in arr:
+        sns.reset_orig()
+        fig_discuss('fig-discuss',Nelections)
 
-sns.reset_orig()
-figS12_split_dec_states('figS1-cong2016',7,5,'2016','11',Nstates,Nelections,Nmmd)
-sns.reset_orig()
-figS12_split_dec_states('figS2-st2008',7,5,'2008','9',Nstates,Nelections,Nmmd)
+    if 8 in arr:
+        sns.reset_orig()
+        figS12_split_dec_states('figS1-cong2016',7,5,'2016','11',Nstates,Nelections,Nmmd)
+    if 9 in arr:
+        sns.reset_orig()
+        figS12_split_dec_states('figS2-st2008',7,5,'2008','9',Nstates,Nelections,Nmmd)
 
-sns.reset_orig()
-figS34_linechart('figS4-stateline',Nelections,Ncyc,Nmmd,'9')
-sns.reset_orig()
-figS34_linechart('figS3-congline',Nelections,Ncyc,Nmmd,'11')
+    if 10 in arr:
+        sns.reset_orig()
+        figS34_linechart('figS4-stateline',Nelections,Ncyc,Nmmd,'9',True)
+    if 11 in arr:
+        sns.reset_orig()
+        figS34_linechart('figS3-congline',Nelections,Ncyc,Nmmd,'11',True)
+
+# make_elj_pics(arr=range(1,12))
+# make_elj_pics(arr=[4]) # range(1,12))
