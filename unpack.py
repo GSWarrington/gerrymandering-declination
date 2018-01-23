@@ -2,26 +2,6 @@
 # as iteratively continue packing/cracking what does curve of declination look like
 # 
 
-def distribute_votes(arr,votes,stidx,enidx,maxval,verbose=False):
-    """ evenly distribute as many of the votes as possible among the districts
-    stidx,stidx+1,...,enidx-1
-    returns new array along with amount not distributed
-    """
-    narr = sorted([x for x in arr])
-    amtper = votes*1.0/(enidx-stidx)
-    allfit = True
-    notfit = 0.0
-    if verbose:
-        print "In dist: ",votes,stidx,enidx,maxval
-    for j in range(stidx,enidx):
-        if narr[j]+amtper < maxval:
-            narr[j] += amtper
-        else:
-            allfit = False
-            notfit = amtper - (maxval-narr[j])
-            narr[j] = maxval
-    return allfit,notfit,sorted(narr)
-
 def undistribute_votes(arr,votes,stidx,enidx,minval):
     """ undoes distribute_votes
     """
@@ -40,74 +20,6 @@ def undistribute_votes(arr,votes,stidx,enidx,minval):
     return allfit,notfit,sorted(narr)
 
 ###############################################################################
-def pack_or_crack(arr,crack=True,verbose=False):
-    """ crack or pack if possible
-    """
-    N = len(arr)
-    delx = 1.0/(2*N)
-    xvals = np.linspace(delx,1-delx,N)
-
-    # figure out which district is being modified
-    narr = sorted([x for x in arr])
-    idx = 0
-    while idx < N and narr[idx] <= 0.5:
-        idx += 1
-    if idx == 0 or idx == N:
-        print "One side one everything. Failing"
-        return False,narr
-
-    # set up parameters for filling things in
-    if crack:
-        maxval = 0.5
-        stidx = 0
-        enidx = idx
-    else: # pack
-        maxval = 1.0
-        stidx = idx+1
-        enidx = N
-
-    lr = stats.linregress(xvals[stidx:enidx],narr[stidx:enidx])
-    # how much room we have for the votes we're trying to crack
-    if crack:
-        room = idx*maxval - sum(narr[stidx:enidx])
-    else:
-        room = (N-idx-1)*maxval - sum(narr[stidx:enidx])
-    # new value for district we're cracking
-    nval = min(0.5,lr[1] + lr[0]*delx*(2*idx + 1))
-    # amount we're changing that one district
-    diff = narr[idx]-nval
-    # see if we have enough room to crack the votes
-    if room < diff:
-        nval = 0.5
-        diff = narr[idx]-nval
-        if room < diff:
-            # print "Not enough room to crack votes; returning original"
-            return False,arr
-
-    # iteratively move the votes
-    narr[idx] = nval
-    allfit = False
-    if not crack:
-        enidx = N-1
-        while enidx > stidx+1 and narr[enidx] == maxval:
-            enidx -= 1
-    else:
-        enidx = idx-1
-        while enidx > 2 and narr[enidx] == maxval:
-            enidx -= 1
-    if stidx == enidx:
-        return False,arr
-    while not allfit:
-        if stidx == enidx:
-            return False,arr
-        allfit,notfit,parr = distribute_votes(narr,diff,stidx,enidx,maxval,verbose)
-        narr = parr
-        diff = notfit
-        if not allfit:
-            while narr[enidx-1] == maxval:
-                enidx -= 1
-    return True,narr
-
 ###############################################################################
 def uncrack_or_unpack(arr,uncrack=True,verbose=False):
     """ uncrack or unpack if possible

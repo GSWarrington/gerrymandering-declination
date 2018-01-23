@@ -66,7 +66,7 @@ def read_tsv_2010(fn):
         ############################################################
         # restriction attention to certain lines
         ############################################################
-        if int(l[hdrs.index('v05')]) < 1972:
+        if int(l[hdrs.index('v05')]) < GLOBAL_MIN_YEAR:
             continue
 
         # '9' codes for the lower house in each state
@@ -166,7 +166,7 @@ def read_tsv_2010(fn):
     return ans,yrs,states,mmd
 
 ##########################
-def read_jacobson_csv(fn,ignore_pre_1972=True):
+def read_jacobson_csv(fn):
     """ Congressional races from 1946 - 2014. From Jacobson.
 
     # Reviewed 11.15.17
@@ -177,6 +177,8 @@ def read_jacobson_csv(fn,ignore_pre_1972=True):
     ]
     yrs = list of years in data file
     states = list of states in data file
+
+    Below discussion assumes GLOBAL_MIN_YEAR = 1971 or 1972
 
     Nothing is returned for MMDs since these were outlawed for congressional elections in 1967 
       and we're restricting to elections since 1972.
@@ -228,7 +230,7 @@ def read_jacobson_csv(fn,ignore_pre_1972=True):
         # 9 1=District redrawn since last election; 0=not redrawn
         # 12 major party presidential vote
 
-        if ignore_pre_1972 and int(l[0]) < 1972:
+        if int(l[0]) < GLOBAL_MIN_YEAR:
             continue
 
         # read in year, state and district
@@ -239,6 +241,14 @@ def read_jacobson_csv(fn,ignore_pre_1972=True):
         state = statelist[stcode-1]
         if state not in states:
             states.append(state)
+        tmp = stcode
+        if tmp < 10:
+            tmp = '0' + str(tmp)
+        else:
+            tmp = str(tmp)
+        distcode = state + tmp + distcode # jacobson is only congressional, all districts are two digits (leading 0s)
+        if state == 'AK':
+            print "jacob: " + distcode
 
         uncontested = False    
         myid = '_'.join([l[0],state,'11']) # '11' means US Congress; 1972_AL_11
@@ -342,7 +352,11 @@ def read_2012_state_csv(fn,chamber):
                 tmp = '0' + str(tmp)
             else:
                 tmp = str(tmp)
-            distcode = state + tmp + l[2] # eg, AL0104
+            distcode = state + tmp + l[2] # eg, AL0104 - two-letter state abbrev + two-digit state index + district
+                                          # for cong, district is two-digit (leading 0 okay).
+                                          # for state, district has no leading digits, may be 3 digits total
+        if state == 'AK':
+            print "other: " + distcode
         if state not in states:
             states.append(state)
 
@@ -382,7 +396,7 @@ def read_all_data():
     states = []
 
     arr,yrs,states,mmd = read_tsv_2010('34297-0001-Data.tsv') # state races up to 2010 from Harvard dataverse
-    arr6,yrs6,states6 = read_jacobson_csv('HR4614.csv',True)  # congressional races from Jacobson. Up to 2014.
+    arr6,yrs6,states6 = read_jacobson_csv('HR4614.csv')  # congressional races from Jacobson. Up to 2014.
     arr7,yrs7,states7 = read_2012_state_csv('stateleg2012plus.csv','9') # State legislature 2012,14,16
     arr8,yrs8,states8 = read_2012_state_csv('cong2016.csv','11')        # Congress 2016
 
@@ -461,8 +475,8 @@ def init_all():
     # read in data from various files and place in a consistent format
     loc_arra,loc_yrs,loc_states,loc_mmd_dict = read_all_data()
     # put into records that are easier to work with.
-    loc_elections,tot_cong,tot_state,cong_yr_lims,state_yr_lims = make_records(loc_arra)
-    print "Total congressional races read in from orignial data files: %d - years %s" % (tot_cong,cong_yr_lims)
+    loc_elections,tot_cong,tot_state,cong_yr_lims,state_yr_lims = make_records(loc_arra,loc_mmd_dict)
+    print "Total congressional races read in from original data files: %d - years %s" % (tot_cong,cong_yr_lims)
     print "Total state races read in from original data files: %d years %s" % (tot_state,state_yr_lims)
 
     # if 1 == 1:
@@ -476,9 +490,9 @@ def init_all():
     
     # create_cycles includes the step of imputing votes
     # grab everything up through 2010.
-    loc_prior_cycles = create_cycles(loc_elections,loc_mmd_dict,True,False,False)
+    loc_prior_cycles = create_cycles(loc_elections,True,False,False)
     # grab everything since 2012.
-    loc_recent_cycles = create_cycles(loc_elections,loc_mmd_dict,False,True,True)
+    loc_recent_cycles = create_cycles(loc_elections,False,True,True)
 
     # make sure any legal votes go down to reasonable amounts.
     # TODO: Why am I picking 0.95 here?
@@ -496,18 +510,17 @@ def init_all():
 #################################################################################
 
 #################################################################################
-def write_elections(fn,elections,mmd):
-    """ write out all data for elections that aren't part of mmd along with imputation data
+def write_elections(fn,elections):
+    """ write out all data for elections (include imputation data)
 
     Do I need to worry about things being converted to strings?
     03.13.17: Init version. Can't test until imputation happens again
     """
     f = open('/home/gswarrin/research/gerrymander/' + fn,'w')
     for elec in elections.values():
-        if (elec.chamber != '9' or elec.yr not in mmd.keys() or elec.state not in mmd[elec.yr]) and \
-           int(elec.yr) >= 1972:
+        if int(elec.yr) >= GLOBAL_MIN_YEAR:
             # general data of an actual election
-            l = ['Elec',elec.yr,elec.state,elec.cyc_state,elec.chamber,str(elec.Ndists),str(elec.Ddists),str(elec.Dfrac)]
+            l = ['Elec',elec.yr,elec.state,elec.cyc_state,elec.chamber,str(elec.Ndists),str(elec.Ddists)] # ,str(elec.Dfrac)]
             f.write(','.join(l) + '\n')
             # data for each district
             for i in range(elec.Ndists):
@@ -571,7 +584,8 @@ def read_elections(fn):
         elec.cyc_state = l[3]
         elec.Ndists = int(l[5])
         elec.Ddists = int(l[6])
-        elec.Dfrac = float(l[7])
+        # Field in old versions - just ignore if present
+        # elec.Dfrac = float(l[7])
 
         idx += 1
 
@@ -597,14 +611,14 @@ def read_elections(fn):
                 print "Problem in file at line %d; dem candidate expected" % (idx+3*j+1)
                 return
             # print l
-            elec.dcands.append(Candy(l[1],l[2],l[3],l[4],l[5],l[6]))
+            elec.dcands.append(Candy(l[1],l[2],l[3],l[4],l[5]=='True',l[6]=='True'))
             elec.dcands[j].is_imputed = elec.status[-1]
 
             l = lines[idx+3*j+2].split(',')
             if l[0] != 'Rep Cand':
                 print "Problem in file at line %d; rep candidate expected" % (idx+3*j+2)
                 return
-            elec.rcands.append(Candy(l[1],l[2],l[3],l[4],l[5],l[6]))
+            elec.rcands.append(Candy(l[1],l[2],l[3],l[4],l[5]=='True',l[6]=='True'))
             elec.rcands[j].is_imputed = elec.status[-1]
         idx += (3*elec.Ndists)
 

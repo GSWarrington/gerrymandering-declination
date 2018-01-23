@@ -159,7 +159,7 @@ class Cycle:
         self.dist_lookup = dist_lookup
            
         # if only a few years, will take more to converge
-        if int(self.max_year)-int(self.min_year) <= 4:
+        if int(self.max_year)-int(self.min_year) <= 5:
             niter = 4000
             nchains = 4
         else:
@@ -170,7 +170,7 @@ class Cycle:
         self.leveliii_fit = pystan.stan(model_code=leveliii_model, data=leveliii_data, 
                                                  iter=niter, chains=nchains)
    
-    def populate_elections(self,elections,loc_mmd):
+    def populate_elections(self,elections):
         """ copy elections into the cycle
 
         # Reviewed 11.15.17
@@ -178,11 +178,8 @@ class Cycle:
         for x in elections.keys():
             # make sure year of election is in correct range
             # skip if chamber is wrong
-            # skip if election has MMDs
             if int(self.min_year) <= int(elections[x].yr) <= int(self.max_year) and \
-                elections[x].chamber == self.chamber and \
-                (elections[x].chamber != '9' or elections[x].yr not in loc_mmd.keys() or \
-                 elections[x].state not in loc_mmd[elections[x].yr]):
+                elections[x].chamber == self.chamber:
                 # REAPP
                 if elections[x].cyc_state not in self.states:
                     self.states.append(elections[x].cyc_state)
@@ -599,27 +596,28 @@ def get_cyc_state(yrint,state,chamber):
             else:                                                                           
                 return 'CA2'
     else:
+        # some states hold elections in odd years
         ############## State 00s
-        if state == 'GA' and 2010 >= yrint >= 2002:                                         
+        if state == 'GA' and 2010 >= yrint >= 2001:                                         
             if 2002 == yrint:                                                               
                 return 'GA1'                                                                
             else:                                                                           
                 return 'GA2'
-        if state == 'SC' and 2010 >= yrint >= 2002:                                         
+        if state == 'SC' and 2010 >= yrint >= 2001:                                         
             if 2002 == yrint:                                                               
                 return 'SC1'                                                                
             else:                                                                           
                 return 'SC2'
 
         ############## State 90s - TN, KY, SC, OH
-        if state == 'SC' and 2000 >= yrint >= 1992:  # M-S has three different, couldn't find evidence
+        if state == 'SC' and 2000 >= yrint >= 1991:  # M-S has three different, couldn't find evidence
             if 1996 >= yrint:                                                               
                 return 'SC1'                                                                
             else:                                                                           
                 return 'SC2'
         # http://www.ncsl.org/research/redistricting/1990s-redistricting-case-summaries.aspx#TN        
         # https://www.senate.mn/departments/scr/REDIST/Redsum/kysum.htm#847%20S.W.2d%20718
-        if state == 'KY' and 2000 >= yrint >= 1992:  
+        if state == 'KY' and 2000 >= yrint >= 1991:  
             if 1994 >= yrint:                                                               
                 return 'KY1'                                                                
             else:                                                                           
@@ -633,13 +631,13 @@ def get_cyc_state(yrint,state,chamber):
             # http://caselaw.findlaw.com/us-6th-circuit/1074038.html
             # this describes 13.9% problem in 1992
             # https://www.comptroller.tn.gov/lg/pdf/redist.pdf
-        if state == 'TN' and 2000 >= yrint >= 1992:  # still should be checked
+        if state == 'TN' and 2000 >= yrint >= 1991:  # still should be checked
            if 1992 == yrint:                                                               
                return 'TN1'                                                                
            else:                                                                           
                return 'TN2'
         # CHECK! Having trouble finding definitive evidence
-        if state == 'OH' and 2000 >= yrint >= 1992:  
+        if state == 'OH' and 2000 >= yrint >= 1991:  
            if 1994 >= yrint:                                                               
                return 'OH1'                                                                
            else:                                                                           
@@ -657,27 +655,27 @@ def get_cyc_state(yrint,state,chamber):
         # VA - has odd years starting in 83 listed
         # 
         # https://www.nmlegis.gov/Redistricting/Documents/187014.pdf        
-        if state == 'NM' and 1990 >= yrint >= 1982:  
+        if state == 'NM' and 1990 >= yrint >= 1981:  
           if 1982 == yrint:                                                               
               return 'NM1'                                                                
           else:                                                                           
               return 'NM2'
         # "Elections, partisanship and the institutionalization...."
         # also notes reapportionment in 1973
-        if state == 'TN' and 1990 >= yrint >= 1982:  
+        if state == 'TN' and 1990 >= yrint >= 1981:  
           if 1982 == yrint:                                                               
               return 'TN1'                                                                
           else:                                                                           
               return 'TN2'
         # https://comm.ncsl.org/productfiles/83453486/Redistrciting_in_Wisconsin_2016.pdf
-        if state == 'WI' and 1990 >= yrint >= 1982:  
+        if state == 'WI' and 1990 >= yrint >= 1981:  
           if 1982 == yrint:                                                               
               return 'WI1'                                                                
           else:                                                                           
               return 'WI2'
         # "redistricting in california: competitive elections - reason.org
         # "redistricting california 1986"
-        if state == 'CA' and 1990 >= yrint >= 1982:  
+        if state == 'CA' and 1990 >= yrint >= 1981:  
           if 1982 == yrint:                                                               
               return 'CA1'                                                                
           else:                                                                           
@@ -686,7 +684,7 @@ def get_cyc_state(yrint,state,chamber):
 
         ############## State 70s - CA
         # www.stat.columbi.edu/~gelman/stuff_for_blog/piero.pdf
-        if state == 'CA' and 1980 >= yrint >= 1972:  
+        if state == 'CA' and 1980 >= yrint >= 1971:  
           if 1972 == yrint:                                                               
               return 'CA1'                                                                
           else:                                                                           
@@ -696,7 +694,7 @@ def get_cyc_state(yrint,state,chamber):
     return state
            
 ###############################################################################################################
-def make_records(arr,elections=None,verbose=False):
+def make_records(arr,mmd,elections=None,verbose=False):
     """ make a record for each year-state-chamber
 
     # Reviewed 11.15.17
@@ -731,6 +729,9 @@ def make_records(arr,elections=None,verbose=False):
     for x in arr:
         if x[0] not in elections.keys(): 
             yr,state,chamber = x[0].split('_')
+            # don't add any elections with MMDs.
+            if chamber == '9' and yr in mmd.keys() and state in mmd[yr]:
+                continue
             elections[x[0]] = Gerry(yr,state,chamber)
 
             if chamber == '11':
@@ -828,7 +829,7 @@ def print_all_races(elections,verbose=True):
                 if verbose:
                     print_race(elections,yr,state,chamber)
 
-def create_cycles(elections,mmd,prior_all,recent_cong,recent_state):
+def create_cycles(elections,prior_all,recent_cong,recent_state):
     """ group together all elections within a given decade.
 
     Uses cycstate to effectively treat different plans within the same state as completely distinct.
@@ -837,10 +838,10 @@ def create_cycles(elections,mmd,prior_all,recent_cong,recent_state):
     cycles = []
     # state and congress
     if prior_all:
-        for yrmin in ['1972','1982','1992','2002']:
+        for yrmin in ['1971','1981','1991','2001']:
             for chamber in ['9','11']:
-                newcycle = Cycle(yrmin,str(int(yrmin)+8),chamber)
-                newcycle.populate_elections(elections,mmd)
+                newcycle = Cycle(yrmin,str(int(yrmin)+9),chamber)
+                newcycle.populate_elections(elections)
                 # print "bbb: ",newcycle.min_year,newcycle.max_year,len(newcycle.elecs)
                 newcycle.fit_model()
                 newcycle.impute_votes(True)
@@ -848,10 +849,10 @@ def create_cycles(elections,mmd,prior_all,recent_cong,recent_state):
 
     # recent congress
     if recent_cong:
-        for yrmin in ['2012']: 
+        for yrmin in ['2011']: 
             for chamber in ['11']:
-                newcycle = Cycle(yrmin,str(int(yrmin)+4),chamber)
-                newcycle.populate_elections(elections,mmd)
+                newcycle = Cycle(yrmin,str(int(yrmin)+5),chamber)
+                newcycle.populate_elections(elections)
                 # print "bbb: ",newcycle.min_year,newcycle.max_year,len(newcycle.elecs)
                 newcycle.fit_model()
                 newcycle.impute_votes(True)
@@ -859,10 +860,10 @@ def create_cycles(elections,mmd,prior_all,recent_cong,recent_state):
 
     # recent state - hard to interpolate, so not clear how useful this is....
     if recent_state:
-        for yrmin in ['2012']: 
+        for yrmin in ['2011']: 
             for chamber in ['9']:
-                newcycle = Cycle(yrmin,str(int(yrmin)+4),chamber)
-                newcycle.populate_elections(elections,mmd)
+                newcycle = Cycle(yrmin,str(int(yrmin)+5),chamber)
+                newcycle.populate_elections(elections)
                 # print "bbb: ",newcycle.min_year,newcycle.max_year,len(newcycle.elecs)
                 newcycle.fit_model()
                 newcycle.impute_votes(True)

@@ -1,5 +1,11 @@
+from subprocess import call, check_output
+import subprocess
+import os  
+
 myr = '#ff8080'
 myb = '#8080ff'
+scalef = 1
+mydpi = 600
 
 # Fig 0: definition of declination
 #   fig0_create
@@ -17,14 +23,40 @@ myb = '#8080ff'
 #   fig_variations
 #     fig3_scatter
 #     fig_pack_crack_all
+#       fig_pack_crack_one
+#         pack_or_crack
+#           distribute_votes
 
 # Fig 2p: 
 
 # Fig 3: Heatmap
 #   fig2_make_heatmap_e
+#     sub_make_heatmap
+#       cmap_discretize
 
 # Fig 4: range over decade
 #   fig_deltae_only
+
+def output_fig(fig,fnstr):
+    """ depends on global argument to determine output format
+    """
+    #######################
+    # save as a png
+    with open('/home/gswarrin/research/gerrymander/pics/' + fnstr + '.png', 'w') as outfile:
+        fig.canvas.print_png(outfile)
+
+    #######################
+    # save as a tiff
+    # Save the image in memory in PNG format
+    # png1 = cStringIO.StringIO()
+    # fig.savefig(png1, format="png")
+
+    # Load this image into PIL
+    # png2 = Image.open(png1).convert("CMYK")
+
+    # Save as TIFF
+    # png2.save('/home/gswarrin/research/gerrymander/pics/' + get_tiff_name(fnstr))
+    # png1.close()
 
 ############################################################################
 # Fig 1.
@@ -103,6 +135,9 @@ def fig0_create(fnstr,elecstr,elections,seatsbool=False):
     fig.patch.set_facecolor('white')
 
     ax1 = fig.gca()
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.yaxis.set_ticks_position('left')
 
     fig1_plot_angle(elecstr,ax1,fig,elections,seatsbool)
 
@@ -125,13 +160,22 @@ def fig1_txpa_heat(axes,fig,elections):
     elec = elections['1974_TX_11']
     # Texas 1974
     fig1_plot_one_declination(axes[0],elec.demfrac,'',True,plotdec=True,xaxislab=True,yaxislab=True)
-
+    fracvote = np.mean(elec.demfrac)
+    fracseats = len(filter(lambda x: x > 0.5, elec.demfrac))*1.0/elec.Ndists
+    print "  1974 TX: Number of districts %d, fraction vote %.3f, fraction seats %.3f" % \
+        (elec.Ndists,fracvote,fracseats)
+    
     ############################
     # explore number of stolen seats
     elec = elections['2012_PA_11']
     # Pennsylvania 2012
     fig1_plot_one_declination(axes[1],elec.demfrac,'',True,\
                          plotdec=True,xaxislab=False,yaxislab=False,plotfullreg=True)
+    fracvote = np.mean(elec.demfrac)
+    fracseats = len(filter(lambda x: x > 0.5, elec.demfrac))*1.0/elec.Ndists
+    print "  2012 PA: Number of districts %d, fraction vote %.3f, fraction seats %.3f" % \
+        (elec.Ndists,fracvote,fracseats)
+    print "  delta_n %.1f" % (get_declination('',elec.demfrac)*elec.Ndists*1.0/2)
 
     ############################
     # hypothetical district plan
@@ -161,6 +205,7 @@ def fig1_txpa_heat(axes,fig,elections):
     # vote distribution for hypothetical plan
     # Hypothetical election
     fig1_plot_one_declination(axes[3],onedarr,'',True,plotdec=True,xaxislab=True,yaxislab=True)
+    print "  Mean vote share %.3f and egap %.2f" % (np.mean(onedarr),get_EG(onedarr))
 
 #################################################################################
 # Fig 1.
@@ -259,6 +304,8 @@ def fig1_plot_one_declination(axe,arr,title,plotslopes=True,lrg=True,plotdec=Tru
         if plotfullreg:
             l = stats.linregress(x1+x2,vals)
             axe.plot([0,1],[l[1],l[1]+l[0]],'k-',linewidth=1)
+            print "  Full regression line: slope %.2f inter %.2f r %.3f p %.4f " % \
+                (l[0],l[1],l[2],l[3])
 
     axe.scatter(x1,y1,color = myr,s=lrg_sz)
     axe.scatter(x2,y2,color = myb,s=lrg_sz)
@@ -291,17 +338,18 @@ def fig1_create(fnstr,elecstr,elections):
 # Third picture
 ###################################################################################################
 # Fig. 3
-def fig3_scatter(elections,ax,mmd):
+def fig3_scatter(elections,ax):
     """
     """
     ax.set_axis_bgcolor('none')
     xarr = []
     yarr = []
+    cnt = 0
     for elec in elections.values():
-        if (elec.chamber != 9 or elec.yr not in mmd or elec.state not in mmd[elec.yr]) and \
-           int(elec.yr) >= 1972:
+        if int(elec.yr) >= GLOBAL_MIN_YEAR:
             fa = get_declination('',elec.demfrac)
             if abs(fa) < 2:
+                cnt += 1
                 xarr.append(elec.Ndists)
                 yarr.append(abs(fa)*math.log(elec.Ndists)/2)
 
@@ -325,11 +373,103 @@ def fig3_scatter(elections,ax,mmd):
     ax.set_xlabel('Number of districts in election')
     ax.set_ylabel('$|\\tilde{\\delta}|$')
 
+    # print "For delta-tilde regression: %d elections with slope %.4f, intercept %.4f
     # now make regression
     l = stats.linregress(xarr,yarr)
-    # print "INFO: delta_e regression line: %.4f %.4f %.4f %.4f" % (l[0],l[1],l[2],l[3])
+    print "  delta_tilde total races: %d" % (cnt)
+    print "  delta_tilde regression line: %.4f %.4f %.4f %.4f" % (l[0],l[1],l[2],l[3])
     ax.plot([0,250],[l[1],l[1]+250*l[0]],'k-',linewidth=1)
 
+##############3
+def distribute_votes(arr,votes,stidx,enidx,maxval,verbose=False):
+    """ evenly distribute as many of the votes as possible among the districts
+    stidx,stidx+1,...,enidx-1
+    returns new array along with amount not distributed
+    """
+    narr = sorted([x for x in arr])
+    amtper = votes*1.0/(enidx-stidx)
+    allfit = True
+    notfit = 0.0
+    if verbose:
+        print "In dist: ",votes,stidx,enidx,maxval
+    for j in range(stidx,enidx):
+        if narr[j]+amtper < maxval:
+            narr[j] += amtper
+        else:
+            allfit = False
+            notfit = amtper - (maxval-narr[j])
+            narr[j] = maxval
+    return allfit,notfit,sorted(narr)
+
+def pack_or_crack(arr,crack=True,verbose=False):
+    """ crack or pack if possible
+    """
+    N = len(arr)
+    delx = 1.0/(2*N)
+    xvals = np.linspace(delx,1-delx,N)
+
+    # figure out which district is being modified
+    narr = sorted([x for x in arr])
+    idx = 0
+    while idx < N and narr[idx] <= 0.5:
+        idx += 1
+    if idx == 0 or idx == N:
+        print "One side one everything. Failing"
+        return False,narr
+
+    # set up parameters for filling things in
+    if crack:
+        maxval = 0.5
+        stidx = 0
+        enidx = idx
+    else: # pack
+        maxval = 1.0
+        stidx = idx+1
+        enidx = N
+
+    lr = stats.linregress(xvals[stidx:enidx],narr[stidx:enidx])
+    # how much room we have for the votes we're trying to crack
+    if crack:
+        room = idx*maxval - sum(narr[stidx:enidx])
+    else:
+        room = (N-idx-1)*maxval - sum(narr[stidx:enidx])
+    # new value for district we're cracking
+    nval = min(0.5,lr[1] + lr[0]*delx*(2*idx + 1))
+    # amount we're changing that one district
+    diff = narr[idx]-nval
+    # see if we have enough room to crack the votes
+    if room < diff:
+        nval = 0.5
+        diff = narr[idx]-nval
+        if room < diff:
+            # print "Not enough room to crack votes; returning original"
+            return False,arr
+
+    # iteratively move the votes
+    narr[idx] = nval
+    allfit = False
+    if not crack:
+        enidx = N-1
+        while enidx > stidx+1 and narr[enidx] == maxval:
+            enidx -= 1
+    else:
+        enidx = idx-1
+        while enidx > 2 and narr[enidx] == maxval:
+            enidx -= 1
+    if stidx == enidx:
+        return False,arr
+    while not allfit:
+        if stidx == enidx:
+            return False,arr
+        allfit,notfit,parr = distribute_votes(narr,diff,stidx,enidx,maxval,verbose)
+        narr = parr
+        diff = notfit
+        if not allfit:
+            while narr[enidx-1] == maxval:
+                enidx -= 1
+    return True,narr
+
+#############
 def fig_pack_crack_one(axl,axr,vals,col,sha,mylab,do_pack=True):
     """ pack a standard response distribution until you can't anymore; see what happens to angle
     """
@@ -398,7 +538,7 @@ def fig_pack_crack_all(elections,axl,axr):
 
     axl.legend(loc='upper left')
 
-def fig_variations(fnstr,elections,cycstates,mmd):
+def fig_variations(fnstr,elections,cycstates):
     """
     """
     plt.close()
@@ -406,7 +546,7 @@ def fig_variations(fnstr,elections,cycstates,mmd):
     axl = plt.subplot2grid((1,2), (0,0))
     ax1 = plt.subplot2grid((1,2), (0,1))
 
-    fig3_scatter(elections,ax1,mmd)
+    fig3_scatter(elections,ax1)
 
     fig_pack_crack_all(elections,axl,axl)
     axl.set_axis_bgcolor('none')
@@ -424,8 +564,93 @@ def fig_variations(fnstr,elections,cycstates,mmd):
     plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
     plt.close()   
 
+def plot_uncontestedness_delta(fn,elections):
+    """ look at uncontestedness percent changes year over year
+
+    Issues to be concerned about with imputation
+    - wild changes in percent uncontested -> wild changes in declination
+    - systematic bias in imputation affecting declination
+    - keep track of how many elections have given percentage
+
+    """
+    unarr = []
+    dearr = []
+    Narr = []
+    farr = []
+    totraces = 0
+    totuncont = 0
+    for elec in elections.values():
+        if int(elec.yr) < GLOBAL_MIN_YEAR or elec.Ndists < 1:
+            continue
+        new_yr = str(int(elec.yr)+2)
+        new_key = '_'.join([new_yr,elec.state,elec.chamber])
+        if new_key in elections.keys():
+            totraces += elec.Ndists
+            totuncont += len(filter(lambda i: elec.status[i] < 2, range(elec.Ndists)))
+            nelec = elections[new_key]
+            ori_un = get_frac_uncontested(elec)
+            new_un = get_frac_uncontested(nelec)
+            ori_dec = get_declination('',elec.demfrac)
+            new_dec = get_declination('',nelec.demfrac)
+            # declination isn't defined one of two years
+            if abs(ori_dec) == 2 or abs(new_dec) == 2:
+                continue
+            # print "%s %s %s %d: %.2f %.2f" % \
+            # (elec.yr,elec.state,elec.chamber,elec.Ndists,new_un-ori_un,new_dec-ori_dec)
+            unarr.append(abs(new_un-ori_un))
+            dearr.append(abs(new_dec-ori_dec))
+            # Narr.append(nelec.Ndists)
+            # farr.append(ori_un)
+
+    l = stats.linregress(unarr,dearr)
+    print "  Corr: slope %.2f inter %.2f r %.3f p %.4f " % \
+        (l[0],l[1],l[2],l[3])
+    print "  Total number of points plotted: ",len(unarr)
+    fig = plt.figure(figsize=(scalef*6,scalef*6),dpi=mydpi)
+    fig.patch.set_visible(True)
+    fig.patch.set_facecolor('white')
+
+    ax1 = fig.gca()
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    plt.scatter(unarr,dearr)
+    plt.axis([0,1,0,1])
+    plt.xlabel('Absolute value of change in fraction of seats uncontested')
+    plt.ylabel('Absolute value of change in declination')
+
+    plt.tight_layout()
+    plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fn)
+    # make_scatter('unc-v-dec',unarr,dearr)
+    # make_scatter('Nvun',Narr,unarr)    
+    # make_scatter('fun',Narr,farr)                
+    # print totuncont,totraces
+
 ############################################################################################
 # Fig. 3
+##########
+def cmap_discretize(cmap, N):
+    """Return a discrete colormap from the continuous colormap cmap.
+
+        cmap: colormap instance, eg. cm.jet. 
+        N: number of colors.
+
+    Example
+        x = resize(arange(100), (5,100))
+        djet = cmap_discretize(cm.jet, 5)
+        imshow(x, cmap=djet)
+    """
+
+    if type(cmap) == str:
+        cmap = get_cmap(cmap)
+    colors_i = np.concatenate((np.linspace(0, 1., N), (0.,0.,0.,0.)))
+    colors_rgba = cmap(colors_i)
+    indices = np.linspace(0, 1., N+1)
+    cdict = {}
+    for ki,key in enumerate(('red','green','blue')):
+        cdict[key] = [ (indices[i], colors_rgba[i-1,ki], colors_rgba[i,ki]) for i in xrange(N+1) ]
+    # Return colormap object.
+    return matplotlib.colors.LinearSegmentedColormap(cmap.name + "_%d"%N, cdict, 1024)
+
 def sub_make_heatmap(fn,curax,tmparr,allyrs,bins,xticks,yticks):
     """ actually make the image
     """
@@ -456,8 +681,8 @@ def sub_make_heatmap(fn,curax,tmparr,allyrs,bins,xticks,yticks):
 
     nax = sns.heatmap(df, ax=curax, xticklabels=xticks, yticklabels=yticks,cmap=cmap, linewidths=.1)
 
-def fig2_make_heatmap_e(fnstr,elections,mmd):
-    """
+def fig2_make_heatmap_e(fnstr,elections):
+    """ Note: Sticking to even years for this figure
     """
     
     minN = 8
@@ -467,13 +692,13 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
     stateang = []
     congangN = []
     stateangN = []
-    allyrs = [(1972+2*j) for j in range(23)]
+    allyrs = [(GLOBAL_MIN_YEAR+1+2*j) for j in range(23)]
     numbins = 8
     congtmparr = [[] for i in range(len(allyrs))]
     statetmparr = [[] for i in range(len(allyrs))]
     congNtmparr = [[] for i in range(len(allyrs))]
     stateNtmparr = [[] for i in range(len(allyrs))]
-    minyr = 1972
+    minyr = GLOBAL_MIN_YEAR
     ccnt = 0
     scnt = 0
     for elec in elections.values():
@@ -486,8 +711,7 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
                 congNtmparr[allyrs.index(int(elec.yr))].append(fang*elec.Ndists*1.0/2)
                 congang.append(fang)
                 congangN.append(fang*elec.Ndists*1.0/2)
-        if elec.Ndists >= minN and elec.chamber == '9' and int(elec.yr) >= minyr and \
-           (elec.yr not in mmd.keys() or elec.state not in mmd[elec.yr]) and int(elec.yr)%2 == 0:
+        if elec.Ndists >= minN and elec.chamber == '9' and int(elec.yr) >= minyr and int(elec.yr)%2 == 0:
             totstate += 1
             fang = get_declination(elec.state,elec.demfrac)*math.log(elec.Ndists)/2
             if abs(fang) < 2:
@@ -502,8 +726,8 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
     fig, axes = plt.subplots(1,2, figsize=(scalef*8,scalef*6),dpi=mydpi) 
     axes = axes.ravel()
 
-    print "Total number of congressional races included (dec defined, at least %d seats): %d" % (minN,ccnt)
-    print "Total number of state races included (dec defined, at least %d seats): %d" % (minN,scnt)
+    print "  Total number of congressional races included (dec defined, at least %d seats): %d" % (minN,ccnt)
+    print "  Total number of state races included (dec defined, at least %d seats): %d" % (minN,scnt)
 
     numbins = 10
     bins = np.linspace(-1.2,0.8,numbins+1)
@@ -533,7 +757,7 @@ def fig2_make_heatmap_e(fnstr,elections,mmd):
 
 ############################################################################################
 # 
-def fig3_deltae_linechart(elections,cycstates,mmd,yrmin,ax,chamber='9',prtitle=True,num=5):
+def fig3_deltae_linechart(elections,cycstates,yrmin,ax,chamber='9',prtitle=True,num=10):
     """
     """
     ans = []
@@ -552,14 +776,12 @@ def fig3_deltae_linechart(elections,cycstates,mmd,yrmin,ax,chamber='9',prtitle=T
     ax.set_axis_bgcolor('none')
     ax.set_axis_on()
     for i,cycstate in enumerate(cycstates):
-        if yrmin in mmd.keys() and state in mmd[yrmin]:
-            continue
         stcnt = 0
         curmin = 10
         curmax = -10
         isokay = True
         szs = 0
-        for yr in [str(int(yrmin)+2*j) for j in range(num)]:
+        for yr in [str(int(yrmin)+j) for j in range(num)]:
             myid = '_'.join([yr,cycstate[:2],chamber])
             if myid in elections.keys(): # and elections[myid].Ndists >= 8:
                 elec = elections[myid]
@@ -608,13 +830,13 @@ def fig3_deltae_linechart(elections,cycstates,mmd,yrmin,ax,chamber='9',prtitle=T
     ax.set_axis_on()
     return cnt
 
-def fig_deltae_only(fnstr,elections,cycstates,mmd):
+def fig_deltae_only(fnstr,elections,cycstates):
     """
     """
     plt.close()
     plt.figure(figsize=(scalef*5,scalef*5),dpi=mydpi) 
 
-    fig3_deltae_linechart(elections,cycstates,mmd,2012,plt.gca(),'11',False)
+    fig3_deltae_linechart(elections,cycstates,2012,plt.gca(),'11',False)
 
     plt.tight_layout()
     plt.savefig('/home/gswarrin/research/gerrymander/pics/' + fnstr)
@@ -623,32 +845,36 @@ def fig_deltae_only(fnstr,elections,cycstates,mmd):
 #######################################################################################
 ####################################################################################################
 # Fig S5
-def figS5_wi_scatter(fnstr,elections,mmd):
+def figS5_wi_scatter(fnstr,elections):
     lang = [[] for i in range(5)]
     lzgap = [[] for i in range(5)]
     cnt = 0
-    # (elec.yr not in mmd.keys() or elec.state not in mmd['1972']) and \
+    #           (str(GLOBAL_MIN_YEAR) not in mmd.keys() or elec.state not in mmd[str(GLOBAL_MIN_YEAR)]) and \
+    #           (str(GLOBAL_MIN_YEAR+1) not in mmd.keys() or elec.state not in mmd[str(GLOBAL_MIN_YEAR+1)]) and \
     for elec in elections.values():
-        if 2010 >= int(elec.yr) >= 1972 and \
-           ('_'.join(['1972',elec.state,'9']) in elections.keys()) and \
-           ('1972' not in mmd or elec.state not in mmd['1972']) and \
-            elec.chamber=='9':
+        if 2010 >= int(elec.yr) >= GLOBAL_MIN_YEAR and elec.Ndists > 0 and \
+           (('_'.join([str(GLOBAL_MIN_YEAR),elec.state,'9']) in elections.keys()) or \
+            ('_'.join([str(GLOBAL_MIN_YEAR+1),elec.state,'9']) in elections.keys())) and \
+             elec.chamber=='9':
             ang = get_declination(elec.state,elec.demfrac)
             zgap = get_tau_gap(elec.demfrac,0)
 
-            yridx = int((int(elec.yr)-1972)/10)
+            yridx = int((int(elec.yr)-GLOBAL_MIN_YEAR-1)/10)
+            if int(elec.yr)%2 == 1:
+                yridx = int((int(elec.yr)-GLOBAL_MIN_YEAR)/10)
             if abs(ang) != 2:
                 cnt += 1
                 lang[yridx].append(ang)
                 lzgap[yridx].append(zgap)
             # print "% .3f % .3f %3d %s %s %2d" % (ang,zgap,elec.Ndists,elec.yr,elec.state,int(elec.chamber))
-    print "WI scatter - total number of races: ",cnt
+    print "  WI scatter - total number of races: ",cnt
     plt.figure(figsize=(scalef*8,scalef*8),dpi=mydpi)
     plt.gca().set_axis_bgcolor('none')
     plt.gca().xaxis.set_ticks_position('bottom')
     plt.gca().yaxis.set_ticks_position('left')
 
-    plt.axis([-0.6,0.6,-0.6,0.6])
+    plt.axis([-0.7,0.7,-0.7,0.7])
+    # plt.axis([-1,1,-1,1])
     plt.axvline(0,color='black',ls='dotted')
     plt.axhline(0,color='black',ls='dotted')
     cols = ['#ff0000','#009000','#00a0a0','#900090']
@@ -660,11 +886,12 @@ def figS5_wi_scatter(fnstr,elections,mmd):
         legs.append(tmp)
         # print np.std(lang)
         # print np.std(lzgap)
+        
+    l = stats.pearsonr(lang[0] + lang[1] + lang[2] + lang[3],\
+                       lzgap[0] + lzgap[1] + lzgap[2] + lzgap[3])
+    print "  WI scatter - Correlation r and p given by %.4f and %.4f" % (l[0],l[1])
 
-    print "WI scatter - Correlation r and p given by:"
-    print stats.pearsonr(lang[0] + lang[1] + lang[2] + lang[3],lzgap[0] + lzgap[1] + lzgap[2] + lzgap[3])
-
-    plt.legend(legs,('1972-1980','1982-1990','1992-2000','2002-2010'),loc='upper left')
+    plt.legend(legs,('1971-1980','1981-1990','1991-2000','2001-2010'),loc='upper left')
     plt.xlabel('Declination',fontsize=18)
     plt.ylabel('Twice the efficiency gap',fontsize=18)
     plt.gca().spines['top'].set_visible(False)
@@ -711,7 +938,7 @@ def fig_discuss(fnstr,elections):
     plt.close()
 
 ##############################################################################################
-def figS12_split_dec_states(fnstr,r,c,yr,chamber,states,elections,mymmd):
+def figS12_split_dec_states(fnstr,r,c,yr,chamber,states,elections):
     """ Make grid of angles for paper
     """
     nstates = []
@@ -720,8 +947,7 @@ def figS12_split_dec_states(fnstr,r,c,yr,chamber,states,elections,mymmd):
         if tmpkey in elections.keys():
             elec = elections[tmpkey]
             ndem = len(filter(lambda y: y >= 0.5, elec.demfrac))
-            if elec.Ndists > 1 and (yr not in mymmd or x not in mymmd[yr]) and \
-               0 < ndem < elec.Ndists:
+            if elec.Ndists > 1 and 0 < ndem < elec.Ndists:
                 nstates.append([get_declination(x,elec.demfrac),elec])
     nstates.sort(key=lambda x: x[0])
     nstates.reverse()
@@ -744,7 +970,7 @@ def figS12_split_dec_states(fnstr,r,c,yr,chamber,states,elections,mymmd):
     plt.close()
 
 ############################################################################################
-def figS34_linechart(fnstr,elections,cycstates,mmd,chamber,verbose=False):
+def figS34_linechart(fnstr,elections,cycstates,chamber,verbose=False):
     """
     """
     plt.close()
@@ -770,16 +996,16 @@ def figS34_linechart(fnstr,elections,cycstates,mmd,chamber,verbose=False):
         axes[3].text(0.5,.48,'D',fontsize=16, transform=fig.transFigure, fontweight='bold')
 
     tot = 0
-    tot += fig3_deltae_linechart(elections,cycstates,mmd,1972,axes[0],chamber,False)
-    tot += fig3_deltae_linechart(elections,cycstates,mmd,1982,axes[1],chamber,False)
-    tot += fig3_deltae_linechart(elections,cycstates,mmd,1992,axes[2],chamber,False)
-    tot += fig3_deltae_linechart(elections,cycstates,mmd,2002,axes[3],chamber,False)
+    tot += fig3_deltae_linechart(elections,cycstates,1971,axes[0],chamber,False)
+    tot += fig3_deltae_linechart(elections,cycstates,1981,axes[1],chamber,False)
+    tot += fig3_deltae_linechart(elections,cycstates,1991,axes[2],chamber,False)
+    tot += fig3_deltae_linechart(elections,cycstates,2001,axes[3],chamber,False)
     if chamber == '11':
-        tot += fig3_deltae_linechart(elections,cycstates,mmd,2012,axes[4],chamber,False)
+        tot += fig3_deltae_linechart(elections,cycstates,2011,axes[4],chamber,False)
         axes[5].set_axis_off()
 
     if verbose:
-        print "Total number of elections included for %s is %d" % (chamber, tot)
+        print "  Total number of elections included for %s is %d" % (chamber, tot)
     axes[0].set_axis_on()
     axes[1].set_axis_on()
     axes[2].set_axis_on()
@@ -788,46 +1014,84 @@ def figS34_linechart(fnstr,elections,cycstates,mmd,chamber,verbose=False):
     output_fig(fig,fnstr)
     plt.close()   
 
-#################################################################################################
+def make_tiffs():
+    """ make suitable TIFF files
+    """
+    myfiles = ['fig0-dec-def','fig1-dec-ex','fig-var','unc-v-dec','fig2-heatmap-e','fig-deltae-only',\
+            'scatter-wi-nommd','fig-discuss','figS1-cong2016','figS2-st2008','figS3-congline',\
+            'figS4-stateline']
+    homepath = '/home/gswarrin/research/gerrymander/'
+    cnt = 1
+    for f in myfiles:
+        outf = 'WarringtonFig' + ("%02d" % (cnt)) + '.tiff'
+        check_output(['convert', homepath + 'pics/' + f + '.png', '-colorspace', 'CMYK', homepath + 'polisci/' + outf])
+        cnt += 1
 
-def make_elj_pics(arr):
+####################################################################################
+
+def make_elj_pics(arr,elecs,states,cycstates):
     """ convenience function
     """
     if 1 in arr:
+        print "Figure 1"
+        print "--------"
         sns.reset_orig()
-        fig0_create('fig0-dec-def','2014_NC_11',Nelections)
+        fig0_create('fig0-dec-def','2014_NC_11',elecs)
     if 2 in arr:
+        print "Figure 2"
+        print "--------"
         sns.reset_orig()
-        fig1_create('fig1-dec-ex','2014_NC_11',Nelections)
+        fig1_create('fig1-dec-ex','2014_NC_11',elecs)
     if 3 in arr:
+        print "Figure 3"
+        print "--------"
         sns.reset_orig()
-        fig_variations('fig-var',Nelections,Ncyc,Nmmd)
+        fig_variations('fig-var',elecs,cycstates)
     if 4 in arr:
+        print "Figure 4"
+        print "--------"
         sns.reset_orig()
-        fig2_make_heatmap_e('fig2-heatmap-e',Nelections,Nmmd)
+        plot_uncontestedness_delta('unc-v-dec',elecs)
     if 5 in arr:
+        print "Figure 5"
+        print "--------"
         sns.reset_orig()
-        fig_deltae_only('fig-deltae-only',Nelections,Ncyc,Nmmd)
+        fig2_make_heatmap_e('fig2-heatmap-e',elecs)
     if 6 in arr:
+        print "Figure 6"
+        print "--------"
         sns.reset_orig()
-        figS5_wi_scatter('scatter-wi-nommd',lelecs,lmmd)
+        fig_deltae_only('fig-deltae-only',elecs,cycstates)
     if 7 in arr:
+        print "Figure 7"
+        print "--------"
         sns.reset_orig()
-        fig_discuss('fig-discuss',Nelections)
-
+        figS5_wi_scatter('scatter-wi-nommd',elecs)
     if 8 in arr:
+        print "Figure 8"
+        print "--------"
         sns.reset_orig()
-        figS12_split_dec_states('figS1-cong2016',7,5,'2016','11',Nstates,Nelections,Nmmd)
+        fig_discuss('fig-discuss',elecs)
+
     if 9 in arr:
+        print "Figure 9"
+        print "--------"
         sns.reset_orig()
-        figS12_split_dec_states('figS2-st2008',7,5,'2008','9',Nstates,Nelections,Nmmd)
-
+        figS12_split_dec_states('figS1-cong2016',7,5,'2016','11',states,elecs)
     if 10 in arr:
+        print "Figure 10"
+        print "---------"
         sns.reset_orig()
-        figS34_linechart('figS4-stateline',Nelections,Ncyc,Nmmd,'9',True)
-    if 11 in arr:
-        sns.reset_orig()
-        figS34_linechart('figS3-congline',Nelections,Ncyc,Nmmd,'11',True)
+        figS12_split_dec_states('figS2-st2008',7,5,'2008','9',states,elecs)
 
-# make_elj_pics(arr=range(1,12))
-# make_elj_pics(arr=[4]) # range(1,12))
+    if 11 in arr:
+        print "Figure 11"
+        print "---------"
+        sns.reset_orig()
+        figS34_linechart('figS3-congline',elecs,cycstates,'11',True)
+    if 12 in arr:
+        print "Figure 12"
+        print "---------"
+        sns.reset_orig()
+        figS34_linechart('figS4-stateline',elecs,cycstates,'9',True)
+

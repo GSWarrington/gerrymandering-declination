@@ -200,75 +200,14 @@ def cross_validate_lots(cycles,tot=10):
     """ cross_validate through lots of cycles
     """
     for c in cycles:
-        if c.chamber == '11' and int(c.min_year) == 2002:
+        if c.chamber == '11' and int(c.min_year) == 2001:
             cross_validate(c,tot)
         
-def dumb_validate(elections,years,states,tot=20,winper=0.65):
-    """ just compare to 75-25
-    """
-    cnt = 0
-    ans = 0
-    while cnt < tot:
-        ryr = randrange(len(years))
-        rst = randrange(len(states))
-        myid = '_'.join([years[ryr],states[rst],'11'])
-        if int(years[ryr]) >= 1972 and myid in elections.keys():
-            elec = elections[myid]
-            rdi = randrange(elec.Ndists)
-            if elec.status[rdi] == 2:
-                if elec.dcands[rdi].winner:
-                    ans += pow(elec.demfrac[rdi]-winper,2)
-                else:
-                    ans += pow(elec.demfrac[rdi]-(1-winper),2)
-                cnt += 1
-    return pow(ans*1.0/tot,0.5)
-
 #############################################################
 # TODO: Thur
 # def scatter_district_effect(cycle):
 #     """ see what the correlation is between frequency of uncontested races and district effect
 #     """
-
-
-def sensitivity(elections,chm,amt):
-    """ check sensitivity to imputation values
-    """
-    for dwinup in [-1,1]:
-        for dloseup in [-1,1]:
-            angdiff = []
-            ogapdiff = []
-            sz = []
-            for elec in elections.values():
-                if int(elec.yr) >= 1972 and elec.chamber == chm and 1 in elec.status and \
-                    1 <= len(filter(lambda x: x > 0.5, elec.demfrac)) < elec.Ndists:
-                    vals = []
-                    for j in range(len(elec.demfrac)):
-                        if elec.status[j] == 2:
-                            vals.append(elec.demfrac[j])
-                        else:
-                            if elec.demfrac[j] > 0.5:
-                                vals.append(max(0.51,elec.demfrac[j]+dwinup*amt))
-                            else:
-                                vals.append(min(0.49,elec.demfrac[j]+dloseup*amt))
-                    ang = get_declination(elec.state,elec.demfrac)
-                    newang = get_declination(elec.state,vals)
-                    ogap = get_tau_gap(elec.demfrac,1)
-                    newogap = get_tau_gap(vals,1)
-                    sz.append(len(filter(lambda x: x == 1, elec.status))*1.0/elec.Ndists)
-                    angdiff.append(ang-newang)
-                    ogapdiff.append(ogap-newogap)
-                    # if angdiff[-1] == 0:
-                    #    print elec.yr,elec.state,elec.demfrac,elec.status
-            print "Dwin adj: %d Dlose adj: %d yields mean ang diff: %.2f mean ogap diff %.2f" % \
-                (dwinup,dloseup,np.mean(angdiff),np.mean(ogapdiff))
-            make_scatter("ang-systemic_%d_%d" % (dwinup,dloseup),sz,angdiff)
-            make_scatter("ogap-systemic_%d_%d" % (dwinup,dloseup),sz,ogapdiff)            
-
-            slope, intercept, r_value, p_value, std_err = stats.linregress(sz,angdiff)
-            print "Ang Dwin adj: %d Dlose adj: %d slope: %.2f %.2f" % (dwinup,dloseup,slope,r_value*r_value)
-            slope, intercept, r_value, p_value, std_err = stats.linregress(sz,ogapdiff)
-            print "Zgap Dwin adj: %d Dlose adj: %d slope: %.2f %.2f" % (dwinup,dloseup,slope,r_value*r_value)
-
 
 def fraction_imputed(elections,chm):
     """ check sensitivity to imputation values
@@ -294,7 +233,7 @@ def fraction_imputed(elections,chm):
     print "fraction < 60 percent imputed: %.2f" % (tweper*1.0/tot)    
 
 def race_data(elections,mmd,chm):
-    """ check sensitivity to imputation values
+    """ not sure....
     """
     imputed = 0
     tot = 0
@@ -303,8 +242,9 @@ def race_data(elections,mmd,chm):
         if int(elec.yr) >= 1972 and elec.chamber == chm and \
            (elec.chamber == '11' or elec.yr not in mmd.keys() or elec.state not in mmd[elec.yr]):
             for j in range(elec.Ndists):
-                if elec.status[j] == 1:
+                if elec.status[j] == 0:
                     imputed += 1
+                    print elec.yr,elec.state,elec.chamber
                 tot += 1
             totelec += 1
     print "%d %d %d" % (imputed,tot,totelec)
