@@ -1,10 +1,5 @@
 # 3 - database for keeping track of elections
 #############################################
-# - first i need to recognize state each race is in
-# - make sure win/lose flags are correct
-# - then i need to get into a state that's ready for imputation
-# - okay from the start, need to impute, has been imputed
-
 # functions
 # make_records - makes records from raw data read in from read_all_data()
 # - get_cyc_state() - modify state name to account for different plans in the same decade
@@ -807,7 +802,7 @@ def print_race(elections,yr,state,chamber):
 def print_all_races(elections,verbose=True):
     """ Print all of the races
     # reviewed 11.30.17
-    # TODO: should probably be called "print_election"
+    # TODO: should probably be called "print_all_elections"
     """
     yrs = []
     states = []

@@ -12,7 +12,6 @@ def count_uncontested(elecs,chamber,verbose=True):
                 tot_unc += 1
             tot_race += 1
         tot_elec += 1
-        # print '_'.join([elec.yr,elec.state,elec.chamber])
     if verbose:
         print "Section 3.1:"
     print "   Chamber %s: %d elections, %d races, %d uncontested" % (chamber,tot_elec, tot_race, tot_unc)
@@ -29,7 +28,6 @@ def characterize_uncontested(elecs,chamber,minN=1,verbose=True):
     for elec in elecs.values():
         if elec.chamber != chamber or elec.Ndists < minN:
             continue
-        # print elec.yr,elec.state,elec.chamber,elec.Ndists
         frac.append(get_frac_uncontested(elec))
     sfrac = sorted(frac)
     idx = 0
@@ -85,7 +83,6 @@ def compare_tau_at_twofifths(elecs,chm,verbose=True):
             farr.append(fa)
             oarr.append(ogap)
     a1,p1 = stats.pearsonr(farr,oarr)
-    # print stats.pearsonr(farr,oarr)
     if verbose:
         print "Section 6.2"
         print "  Correlation between tau=2/5 and declination is"
